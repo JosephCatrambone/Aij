@@ -1,0 +1,48 @@
+apply plugin: 'java'
+apply plugin: 'idea'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+version = '1.0'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	testCompile group: 'junit', name: 'junit', version: '4.11'
+	// For JBlas
+	compile 'org.jblas:jblas:1.2.4'
+	runtime 'org.jblas:jblas:1.2.4'
+}
+
+/*
+task copyToLib( type: Copy ) {
+	into "$buildDir/libs/lib"
+	from configurations.runtime
+}
+*/
+
+jar {
+	//dependsOn copyToLib
+	from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+	manifest {
+		attributes 'Implementation-Title': 'Aij',
+			'Implementation-Version': version,
+			'Main-Class': 'com.josephcatrambone.aij.Main'
+	}
+}
+
+task(quickRun, dependsOn: 'classes', type: JavaExec) {
+	main = 'com.josephcatrambone.aij.Main'
+	classpath = sourceSets.main.runtimeClasspath
+	//args '1KSentences.txt'
+	//systemProperty 'simple.message', 'Running with arg 1KSentences.txt'
+}
+
+idea {
+	module {
+		downloadJavadoc = true
+		downloadSources = true
+	}
+}
