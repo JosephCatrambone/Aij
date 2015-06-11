@@ -107,7 +107,6 @@ public class Main extends Application {
 		OneToOneNetwork.Monitor imageDisplay = new OneToOneNetwork.Monitor() {
 			@Override
 			public void run(Matrix intermediate) {
-				for()
 			}
 		};
 
