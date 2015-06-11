@@ -128,7 +128,13 @@ public class ConvolutionalNetwork implements Network, Serializable{
 			public Matrix op(Matrix input) {
 				return operator.predict(input);
 			}
-		}, true, exampleWidth, exampleHeight, xStep, yStep, windowWidth, windowHeight, convolutionOutputWidth, convolutionOutputHeight, convolutionOutputWidth, convolutionOutputHeight);
+		}, true,
+			exampleWidth, exampleHeight,
+			xStep, yStep,
+			windowWidth, windowHeight,
+			convolutionOutputWidth, convolutionOutputHeight,
+			convolutionOutputWidth, convolutionOutputHeight
+		);
 	}
 
 	@Override
@@ -139,11 +145,12 @@ public class ConvolutionalNetwork implements Network, Serializable{
 				return operator.reconstruct(input);
 			}
 		}, true,
-				convolutionOutputWidth*(exampleWidth/xStep), convolutionOutputHeight*(exampleHeight/yStep), // Our convolution layer is this big
-				convolutionOutputWidth, convolutionOutputHeight, // We assume there's no overlap on the conv layer and step across examples like this.
-				convolutionOutputWidth, convolutionOutputHeight, // Our window size is one convolution op.
-				windowWidth, windowHeight, // Out convolution output, in this case, is the size of the original sample.
-				xStep, yStep); // And we step across it with the same step size.
+			convolutionOutputWidth*(exampleWidth/xStep), convolutionOutputHeight*(exampleHeight/yStep), // Our convolution layer is this big
+			convolutionOutputWidth, convolutionOutputHeight, // We assume there's no overlap on the conv layer and step across examples like this.
+			convolutionOutputWidth, convolutionOutputHeight, // Our window size is one convolution op.
+			windowWidth, windowHeight, // Out convolution output, in this case, is the size of the original sample.
+			xStep, yStep // And we step across it with the same step size.
+		);
 	}
 
 	@Override

@@ -1,6 +1,8 @@
 package com.josephcatrambone.aij;
 
+import com.josephcatrambone.aij.networks.ConvolutionalNetwork;
 import com.josephcatrambone.aij.networks.NeuralNetwork;
+import com.josephcatrambone.aij.networks.OneToOneNetwork;
 import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
 import com.josephcatrambone.aij.trainers.BackpropTrainer;
 import com.josephcatrambone.aij.trainers.RBMTrainer;
@@ -14,9 +16,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelWriter;
-import javafx.scene.image.WritableImage;
+import javafx.scene.image.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -64,6 +64,104 @@ public class Main extends Application {
 
 		// Run
 		trainer.train(rbm, x, null, updateFunction);
+	}
+
+	public void imageDemo(Stage stage) {
+		// Build UI
+		stage.setTitle("Aij Test UI");
+		GridPane pane = new GridPane();
+		pane.setAlignment(Pos.CENTER);
+		Scene scene = new Scene(pane, WIDTH, HEIGHT);
+		Canvas canvas = new Canvas(WIDTH, HEIGHT);
+		pane.add(canvas, 0, 0);
+		stage.setScene(scene);
+		stage.show();
+
+		// Build data
+		final int NUM_EXAMPLES = 1;
+		Image img = new Image("D:\\tmp\\test.png", true);
+		final Matrix examples = new Matrix(NUM_EXAMPLES, (int)(img.getWidth()*img.getHeight()));
+		PixelReader pr = img.getPixelReader();
+		for(int y=0; y < img.getHeight(); y++) {
+			for(int x=0; x < img.getWidth(); x++) {
+				examples.set(0, (int)(x+y*img.getWidth()), pr.getColor(x, y).getBrightness());
+			}
+		}
+		final Matrix y = null; // Unsupervised.
+
+		// Set up the drawing target.
+		// Clear the image
+		GraphicsContext gc = canvas.getGraphicsContext2D();
+		gc.setFill(Color.BLACK);
+		gc.fillRect(0, 0, WIDTH, HEIGHT);
+
+		WritableImage imgOut = new WritableImage((int)img.getWidth(), (int)img.getHeight());
+		PixelWriter pw = imgOut.getPixelWriter();
+		//pane.add(new ImageView(img), 0, 0);
+
+		// Build backend
+		int CONV_SIZE = 16;
+		OneToOneNetwork network = new OneToOneNetwork(CONV_SIZE*CONV_SIZE);
+		ConvolutionalNetwork convnet = new ConvolutionalNetwork(network, (int)img.getWidth(), (int)img.getHeight(), CONV_SIZE, CONV_SIZE, CONV_SIZE, CONV_SIZE, CONV_SIZE/2, CONV_SIZE/2, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+
+		OneToOneNetwork.Monitor imageDisplay = new OneToOneNetwork.Monitor() {
+			@Override
+			public void run(Matrix intermediate) {
+				for()
+			}
+		};
+
+		Runnable updateFunction = new Runnable() {
+			int iteration=0;
+
+			@Override
+			public void run() {
+
+
+				for(int i=0; i < IMAGE_WIDTH*IMAGE_HEIGHT; i++) {
+					int x = i%IMAGE_WIDTH;
+					int y = i/IMAGE_WIDTH;
+					double color = preimage.get(0, i);
+					if(color < 0) { color = 0; }
+					if(color > 1.0) { color = 1.0; }
+					pw.setColor(x, y, Color.gray(color));
+				}
+				gc.drawImage(img, 0, 0, IMAGE_WIDTH*10, IMAGE_HEIGHT*10);
+
+				// Draw all the weights below it.
+				for(int i=0; i < rbm.getNumOutputs(); i++) {
+					img = new WritableImage(IMAGE_WIDTH, IMAGE_HEIGHT);
+					pw = img.getPixelWriter();
+					Matrix output = Matrix.zeros(1, rbm.getNumOutputs());
+					output.set(0, i, 1.0);
+					Matrix reconstruction = rbm.reconstruct(output);
+
+					for(int j=0; j < IMAGE_WIDTH*IMAGE_HEIGHT; j++) {
+						int x = j%IMAGE_WIDTH;
+						int y = j/IMAGE_WIDTH;
+						double color = reconstruction.get(0, j);
+						if(color < 0) { color = 0; }
+						if(color > 1.0) { color = 1.0; }
+						pw.setColor(x, y, Color.gray(color));
+					}
+					pw.setColor(i, 0, Color.gray(1.0));
+
+					gc.drawImage(img, i*(IMAGE_WIDTH*5), IMAGE_HEIGHT*10, IMAGE_WIDTH*5, IMAGE_HEIGHT*5);
+				}
+
+				System.out.println(iteration + ":" + trainer.lastError);
+			}
+		};
+
+		Timeline timeline = new Timeline();
+		timeline.setCycleCount(Timeline.INDEFINITE);
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.2), new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				trainer.train(rbm, x, y, updateFunction);
+			}
+		}));
+		timeline.playFromStart();
 	}
 
 	public void shapeDemo(Stage stage) {
