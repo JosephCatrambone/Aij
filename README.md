@@ -74,3 +74,7 @@ but there was so much overlap it made sense to split out the layer type.
 ## Why make a matrix type instead of reusing the jBlas DoubleMatrix.
 
 The matrix class is a very thin wrapper which was done because we might want to swap out jblas in the future.
+
+## What is a OneToOne network?  Why?
+
+A one to one network is just a layer whose outputs are the same as the inputs and vice-versa.  In mathematical terms, f(x) = x.  It has also an interface 'Monitor'.  There is a prediction monitor and a reconstruction monitor.  These are called (if not null) when the predict and reconstruct methods of the network are called.  That might seem silly, but it's helpful for me to be able to see what is being passed through a network when predict and reconstruct are called.  It also helps when making the convolution trainer, since I can write convolve once and then use this method to grab training data from the network.
