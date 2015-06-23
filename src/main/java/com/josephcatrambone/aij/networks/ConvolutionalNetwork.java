@@ -175,6 +175,10 @@ public class ConvolutionalNetwork implements Network, Serializable{
 		return (exampleWidth/xStep) * (exampleHeight/yStep);
 	}
 
+	public Network getOperator() { return this.operator; }
+
+	public void setOperator(Network op) { this.operator = op; }
+
 	@Override
 	public int getNumLayers() {
 		return operator.getNumLayers();
