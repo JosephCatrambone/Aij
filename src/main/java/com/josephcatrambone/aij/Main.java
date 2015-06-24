@@ -5,6 +5,7 @@ import com.josephcatrambone.aij.networks.NeuralNetwork;
 import com.josephcatrambone.aij.networks.OneToOneNetwork;
 import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
 import com.josephcatrambone.aij.trainers.BackpropTrainer;
+import com.josephcatrambone.aij.trainers.ConvolutionalTrainer;
 import com.josephcatrambone.aij.trainers.RBMTrainer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -24,8 +25,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import javax.imageio.ImageIO;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.util.Random;
 
 
@@ -35,7 +35,29 @@ public class Main extends Application {
 
 	@Override
 	public void start(Stage stage) {
-		shapeDemo(stage);
+		mnistDemo(stage);
+	}
+
+	public void mnistDemo(Stage stage) {
+		Matrix data = loadMNIST("train-images-idx3-ubyte");
+
+		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 3*3);
+		RBMTrainer rbmTrainer = new RBMTrainer();
+		rbmTrainer.batchSize = 10;
+		rbmTrainer.learningRate = 0.1;
+
+		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(
+				edgeDetector, 28, 28, 5, 5, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+
+		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
+		convTrainer.operatorTrainer = rbmTrainer;
+		convTrainer.learningRate = 0.1;
+		convTrainer.minibatchSize = 10;
+		convTrainer.batchSize = 100;
+
+		convTrainer.train(layer0, data, null, null);
+
+		System.exit(0);
 	}
 
 	public void threeParityDemo(Stage stage) {
@@ -342,6 +364,45 @@ public class Main extends Application {
 		}
 
 		return output;
+	}
+
+	public Matrix loadMNIST(final String filename) {
+		int numImages = -1;
+		int imgWidth = -1;
+		int imgHeight = -1;
+		Matrix trainingData = null;
+
+		// Load MNIST training data.
+		try(FileInputStream fin = new FileInputStream(filename); DataInputStream din = new DataInputStream(fin)) {
+			din.readInt();
+			assert(din.readInt() == 2051);
+			numImages = din.readInt();
+			imgHeight = din.readInt();
+			imgWidth = din.readInt();
+			System.out.println("numImages: " + numImages);
+			System.out.println("height: " + imgHeight);
+			System.out.println("width: " + imgWidth);
+			trainingData = new Matrix(numImages, imgWidth*imgHeight);
+			for(int i=0; i < numImages; i++) {
+				for(int y=0; y < imgHeight; y++) {
+					for(int x=0; x < imgWidth; x++) {
+						int grey = ((int)din.readByte()) & 0xFF; // Java is always signed.  Need to and with 0xFF to undo it.
+						trainingData.set(i, x+y*imgWidth, ((double)(grey-128.0))/128.0);
+					}
+				}
+				if(i%1000 == 0) {
+					System.out.println("Loaded " + i + " out of " + numImages);
+				}
+			}
+			fin.close();
+		} catch(FileNotFoundException fnfe) {
+			System.out.println("Unable to find and load file.");
+			System.exit(-1);
+		} catch(IOException ioe) {
+			System.out.println("IO Exception while reading data.");
+			System.exit(-1);
+		}
+		return trainingData;
 	}
 
 	public static void main(String[] args) {
