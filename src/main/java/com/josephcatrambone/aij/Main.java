@@ -126,14 +126,8 @@ public class Main extends Application {
 
 		// Build backend
 		int CONV_SIZE = 16;
-		OneToOneNetwork network = new OneToOneNetwork(CONV_SIZE*CONV_SIZE);
+		OneToOneNetwork network = new OneToOneNetwork(CONV_SIZE*CONV_SIZE, CONV_SIZE*CONV_SIZE);
 		ConvolutionalNetwork convnet = new ConvolutionalNetwork(network, (int)img.getWidth(), (int)img.getHeight(), CONV_SIZE, CONV_SIZE, CONV_SIZE, CONV_SIZE, CONV_SIZE/2, CONV_SIZE/2, ConvolutionalNetwork.EdgeBehavior.ZEROS);
-
-		OneToOneNetwork.Monitor imageDisplay = new OneToOneNetwork.Monitor() {
-			@Override
-			public void run(Matrix intermediate) {
-			}
-		};
 
 		Runnable updateFunction = new Runnable() {
 			@Override

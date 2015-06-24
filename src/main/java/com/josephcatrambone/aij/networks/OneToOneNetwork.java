@@ -3,46 +3,61 @@ package com.josephcatrambone.aij.networks;
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.layers.Layer;
 
+import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
+
 /**
  * A debugging network which has 1:1 connections from in to out.
+ * If output size is zero or the preduction function is null, reutrns null.
  * Created by Jo on 6/7/2015.
  */
 public class OneToOneNetwork implements Network {
-	private int size;
-	public Monitor predictionMonitor = null, reconstructionMonitor = null;
+	private int inputSize, outputSize;
 
-	public interface Monitor {
-		void run(Matrix intermediate);
-	}
+	public Consumer <Matrix> predictionMonitor = null;
+	public Consumer <Matrix> reconstructionMonitor = null;
+	public UnaryOperator <Matrix> predictionFunction = null;
+	public UnaryOperator <Matrix> reconstructionFunction = UnaryOperator.identity();
 
-	public OneToOneNetwork(int size) {
-		this.size = size;
+	public OneToOneNetwork(int inputSize, int outputSize) {
+		this.inputSize = inputSize;
+		this.outputSize = outputSize;
 	}
 
 	@Override
 	public Matrix predict(Matrix input) {
 		if(predictionMonitor != null) {
-			predictionMonitor.run(input);
+			predictionMonitor.accept(input);
 		}
-		return input;
+
+		if(predictionFunction != null && outputSize > 0) {
+			return predictionFunction.apply(input);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public Matrix reconstruct(Matrix output) {
 		if(reconstructionMonitor != null) {
-			reconstructionMonitor.run(output);
+			reconstructionMonitor.accept(output);
 		}
-		return output;
+
+		if(reconstructionFunction != null) {
+			return reconstructionFunction.apply(output);
+		} else {
+			return null;
+		}
 	}
 
 	@Override
 	public int getNumInputs() {
-		return size;
+		return inputSize;
 	}
 
 	@Override
 	public int getNumOutputs() {
-		return size;
+		return outputSize;
 	}
 
 	@Override
