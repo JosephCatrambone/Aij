@@ -10,6 +10,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.concurrent.Task;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
@@ -22,6 +23,9 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
 import java.util.Random;
 
 
@@ -111,44 +115,8 @@ public class Main extends Application {
 		};
 
 		Runnable updateFunction = new Runnable() {
-			int iteration=0;
-
 			@Override
 			public void run() {
-
-
-				for(int i=0; i < IMAGE_WIDTH*IMAGE_HEIGHT; i++) {
-					int x = i%IMAGE_WIDTH;
-					int y = i/IMAGE_WIDTH;
-					double color = preimage.get(0, i);
-					if(color < 0) { color = 0; }
-					if(color > 1.0) { color = 1.0; }
-					pw.setColor(x, y, Color.gray(color));
-				}
-				gc.drawImage(img, 0, 0, IMAGE_WIDTH*10, IMAGE_HEIGHT*10);
-
-				// Draw all the weights below it.
-				for(int i=0; i < rbm.getNumOutputs(); i++) {
-					img = new WritableImage(IMAGE_WIDTH, IMAGE_HEIGHT);
-					pw = img.getPixelWriter();
-					Matrix output = Matrix.zeros(1, rbm.getNumOutputs());
-					output.set(0, i, 1.0);
-					Matrix reconstruction = rbm.reconstruct(output);
-
-					for(int j=0; j < IMAGE_WIDTH*IMAGE_HEIGHT; j++) {
-						int x = j%IMAGE_WIDTH;
-						int y = j/IMAGE_WIDTH;
-						double color = reconstruction.get(0, j);
-						if(color < 0) { color = 0; }
-						if(color > 1.0) { color = 1.0; }
-						pw.setColor(x, y, Color.gray(color));
-					}
-					pw.setColor(i, 0, Color.gray(1.0));
-
-					gc.drawImage(img, i*(IMAGE_WIDTH*5), IMAGE_HEIGHT*10, IMAGE_WIDTH*5, IMAGE_HEIGHT*5);
-				}
-
-				System.out.println(iteration + ":" + trainer.lastError);
 			}
 		};
 
@@ -157,7 +125,7 @@ public class Main extends Application {
 		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.2), new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
-				trainer.train(rbm, x, y, updateFunction);
+
 			}
 		}));
 		timeline.playFromStart();
@@ -203,7 +171,7 @@ public class Main extends Application {
 		final Matrix y = null; // Unsupervised.
 
 		// Build backend
-		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(IMAGE_WIDTH*IMAGE_HEIGHT, 8);
+		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(IMAGE_WIDTH*IMAGE_HEIGHT, 16);
 		RBMTrainer trainer = new RBMTrainer();
 		trainer.batchSize = 10;
 		trainer.learningRate = 0.01;
@@ -267,6 +235,12 @@ public class Main extends Application {
 			@Override
 			public void handle(ActionEvent event) {
 				trainer.train(rbm, x, y, updateFunction);
+				try {
+					Image visualized = visualizeRBM(rbm);
+					ImageIO.write(SwingFXUtils.fromFXImage(visualized, null), "png", new File("output.png"));
+				} catch(IOException ioe) {
+					System.out.println("Problem writing output.png");
+				}
 			}
 		}));
 		timeline.playFromStart();
@@ -291,7 +265,7 @@ public class Main extends Application {
 		final int RESOLUTION = 1000;
 		final Matrix x = new Matrix(RESOLUTION, 1);
 		for(int i=0; i < RESOLUTION; i++) {
-			x.set(i, 0, Math.PI*i*2.0/(float)RESOLUTION);
+			x.set(i, 0, Math.PI * i * 2.0 / (float) RESOLUTION);
 		}
 		final Matrix y = x.elementOp(v -> Math.sin(v));
 
@@ -333,6 +307,41 @@ public class Main extends Application {
 			}
 		}));
 		timeline.playFromStart();
+	}
+
+	/*** visualizeRBM
+	 * Given an RBM as input, return an image which shows the sensitivity of each pathway.
+	 * Attempts to produce a square image.
+	 * @param rbm
+	 * @return
+	 */
+	public Image visualizeRBM(RestrictedBoltzmannMachine rbm) {
+		int outputNeurons = rbm.getNumOutputs();
+		int inputNeurons = rbm.getNumInputs();
+		int subImgWidth = (int)Math.sqrt(inputNeurons);
+		int imgWidth = (int)Math.ceil(Math.sqrt(outputNeurons))*subImgWidth;
+		WritableImage output = new WritableImage(imgWidth, imgWidth);
+		PixelWriter pw = output.getPixelWriter();
+
+		for(int i=0; i < outputNeurons; i++) {
+			int subImgOffsetX = i%((int)Math.sqrt(outputNeurons));
+			int subImgOffsetY = i/((int)Math.sqrt(outputNeurons));
+
+			// Set one item hot and reconstruct
+			Matrix stim = new Matrix(1, outputNeurons);
+			stim.set(0, i, 1.0);
+			Matrix reconstruction = rbm.reconstruct(stim);
+
+			// Rebuild and draw input to image
+			for(int j=0; j < inputNeurons; j++) {
+				double val = reconstruction.get(0, j);
+				if(val < 0) { val = 0; }
+				if(val > 1) { val = 1; }
+				pw.setColor(subImgOffsetX*subImgWidth + j%subImgWidth, subImgOffsetY*subImgWidth + j/subImgWidth, Color.gray(val));
+			}
+		}
+
+		return output;
 	}
 
 	public static void main(String[] args) {
