@@ -76,14 +76,14 @@ public class ConvolutionalNetwork implements Network, Serializable{
 					// We have a global x/y offset, now.
 					// Copy the example matrix into the subsample, being mindful of the edge condition.
 					Matrix subsample = Matrix.zeros(wH, wW);
-					for(int exampleY = 0; exampleY < wH; exampleY++) {
-						for (int exampleX = 0; exampleX < wW; exampleX++) {
-							int exampleYPosition = (y*eYStep)-(wH/2);
-							int exampleXPosition = (x*eXStep)-(wW/2);
-							if(exampleYPosition < 0 || exampleYPosition > exampleIn.numRows() || exampleXPosition < 0 || exampleXPosition > exampleIn.numColumns()) {
+					for(int windowY = 0; windowY < wH; windowY++) {
+						for (int windowX = 0; windowX < wW; windowX++) {
+							int exampleY = (y*eYStep)-(wH/2) + windowY;
+							int exampleX = (x*eXStep)-(wW/2) + windowX;
+							if(exampleY < 0 || exampleY >= exampleIn.numRows() || exampleX < 0 || exampleX >= exampleIn.numColumns()) {
 								switch(edgeBehavior) {
 									case ZEROS:
-										subsample.set(exampleY, exampleX, 0.0);
+										subsample.set(windowY, windowX, 0.0);
 										break;
 									case REPEAT:
 										//subsample.set(exampleY, exampleX, exampleIn.get(Math.min(exampleIn.numRows(), Math.max(0, exampleYPosition)), Math.min(exampleIn.numColumns(), Math.max(0, exampleXPosition))));
@@ -94,7 +94,7 @@ public class ConvolutionalNetwork implements Network, Serializable{
 										break;
 								}
 							} else {
-								subsample.set(exampleYPosition, exampleXPosition, exampleIn.get(exampleYPosition, exampleXPosition));
+								subsample.set(windowY, windowX, exampleIn.get(exampleY, exampleX));
 							}
 						}
 					}

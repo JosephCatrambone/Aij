@@ -61,7 +61,7 @@ public class ConvolutionalTrainer implements Trainer {
 
 
 		for(int i=0; i < maxIterations && lastError > earlyStopError; i++) {
-			Matrix examples = new Matrix(examplesPerBatch, op.getNumInputs());
+			Matrix examples = new Matrix(subwindowsPerExample*examplesPerBatch, op.getNumInputs());
 			Matrix labels2 = null;
 
 			// Don't waste space if we have no labels.
