@@ -44,7 +44,13 @@ public class ConvolutionalTrainer implements Trainer {
 			@Override
 			public void accept(Matrix intermediate) {
 				windowData.setRow(i, intermediate);
-				i = i+1%windowData.numRows();
+				i = (i+1)%windowData.numRows();
+			}
+		};
+		netSpy.predictionFunction = new UnaryOperator<Matrix>() {
+			@Override
+			public Matrix apply(Matrix matrix) {
+				return new Matrix(1, op.getNumOutputs());
 			}
 		};
 
