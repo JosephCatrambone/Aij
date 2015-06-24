@@ -10,7 +10,6 @@ import com.josephcatrambone.aij.trainers.RBMTrainer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
-import javafx.concurrent.Task;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -52,8 +51,8 @@ public class Main extends Application {
 		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
 		convTrainer.operatorTrainer = rbmTrainer;
 		convTrainer.learningRate = 0.1;
-		convTrainer.minibatchSize = 10;
-		convTrainer.batchSize = 100;
+		convTrainer.subwindowsPerExample = 10;
+		convTrainer.examplesPerBatch = 100;
 
 		convTrainer.train(layer0, data, null, null);
 
