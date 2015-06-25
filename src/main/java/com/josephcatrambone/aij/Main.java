@@ -38,25 +38,53 @@ public class Main extends Application {
 	}
 
 	public void mnistDemo(Stage stage) {
+		// Load training data
 		Matrix data = loadMNIST("train-images-idx3-ubyte");
 
-		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 3*3);
+		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 16*16);
+		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
-		rbmTrainer.batchSize = 10;
+		rbmTrainer.batchSize = 10; // 5x20
 		rbmTrainer.learningRate = 0.1;
+		rbmTrainer.maxIterations = 10;
 
-		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(
-				edgeDetector, 28, 28, 5, 5, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
-
+		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, 28, 28, 5, 5, 16, 16, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
 		convTrainer.operatorTrainer = rbmTrainer;
 		convTrainer.learningRate = 0.1;
-		convTrainer.subwindowsPerExample = 10;
-		convTrainer.examplesPerBatch = 100;
+		convTrainer.subwindowsPerExample = 20;
+		convTrainer.examplesPerBatch = 5;
+		convTrainer.maxIterations = 1;
 
-		convTrainer.train(layer0, data, null, null);
+		// Set up UI
+		stage.setTitle("Aij Test UI");
+		GridPane pane = new GridPane();
+		pane.setAlignment(Pos.CENTER);
+		Scene scene = new Scene(pane, WIDTH, HEIGHT);
+		ImageView imageView = new ImageView(visualizeRBM(edgeDetector));
+		pane.getChildren().add(imageView);
+		//pane.add(imageView);
+		stage.setScene(scene);
+		stage.show();
 
-		System.exit(0);
+		// Repeated draw.
+		Timeline timeline = new Timeline();
+		timeline.setCycleCount(Timeline.INDEFINITE);
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.2), new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				System.out.println("Training...");
+				convTrainer.train(layer0, data, null, null);
+				//rbmTrainer.train(edgeDetector, data, null, null);
+				System.out.println("Trained.  Drawing...");
+				Image img = visualizeRBM(edgeDetector);
+				imageView.setImage(img);
+				System.out.println(img.getWidth() + " x " + img.getHeight() + " image drawn.  Looping.");
+			}
+		}));
+		timeline.playFromStart();
+
+		//System.exit(0);
 	}
 
 	public void threeParityDemo(Stage stage) {
@@ -333,14 +361,14 @@ public class Main extends Application {
 	public Image visualizeRBM(RestrictedBoltzmannMachine rbm) {
 		int outputNeurons = rbm.getNumOutputs();
 		int inputNeurons = rbm.getNumInputs();
-		int subImgWidth = (int)Math.sqrt(inputNeurons);
+		int subImgWidth = (int)Math.ceil(Math.sqrt(inputNeurons));
 		int imgWidth = (int)Math.ceil(Math.sqrt(outputNeurons))*subImgWidth;
 		WritableImage output = new WritableImage(imgWidth, imgWidth);
 		PixelWriter pw = output.getPixelWriter();
 
 		for(int i=0; i < outputNeurons; i++) {
-			int subImgOffsetX = i%((int)Math.sqrt(outputNeurons));
-			int subImgOffsetY = i/((int)Math.sqrt(outputNeurons));
+			int subImgOffsetX = subImgWidth*(i%((int)Math.ceil(Math.sqrt(outputNeurons))));
+			int subImgOffsetY = subImgWidth*(i/((int)Math.ceil(Math.sqrt(outputNeurons))));
 
 			// Set one item hot and reconstruct
 			Matrix stim = new Matrix(1, outputNeurons);
@@ -348,11 +376,11 @@ public class Main extends Application {
 			Matrix reconstruction = rbm.reconstruct(stim);
 
 			// Rebuild and draw input to image
-			for(int j=0; j < inputNeurons; j++) {
+			for(int j=0; j < reconstruction.numColumns(); j++) {
 				double val = reconstruction.get(0, j);
 				if(val < 0) { val = 0; }
 				if(val > 1) { val = 1; }
-				pw.setColor(subImgOffsetX*subImgWidth + j%subImgWidth, subImgOffsetY*subImgWidth + j/subImgWidth, Color.gray(val));
+				pw.setColor(subImgOffsetX + j%subImgWidth, subImgOffsetY + j/subImgWidth, Color.gray(val));
 			}
 		}
 

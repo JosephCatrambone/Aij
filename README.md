@@ -13,7 +13,10 @@ Given some input examples and a networks (and, often, some labels), a trainer wi
 and the biases of the layers to fit the data.  Some trainers only work on specific network types.
 
 RBM Trainer -> RestrictedBoltzmannMachine Network
+
 Backprop Trainer -> Neural Network
+
+Convolutional Trainer -> Convnet
 
 ## Layer
 
