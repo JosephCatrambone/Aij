@@ -2,7 +2,6 @@ package com.josephcatrambone.aij;
 
 import com.josephcatrambone.aij.networks.ConvolutionalNetwork;
 import com.josephcatrambone.aij.networks.NeuralNetwork;
-import com.josephcatrambone.aij.networks.OneToOneNetwork;
 import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
 import com.josephcatrambone.aij.trainers.BackpropTrainer;
 import com.josephcatrambone.aij.trainers.ConvolutionalTrainer;
@@ -34,7 +33,73 @@ public class Main extends Application {
 
 	@Override
 	public void start(Stage stage) {
-		mnistDemo(stage);
+		imageDemo(stage);
+	}
+
+	public void imageDemo(Stage stage) {
+		// Load training data
+		// Build data
+		final int NUM_EXAMPLES = 2;
+		Image img = new Image("file://./test1.jpg", true);
+		final Matrix examples = new Matrix(NUM_EXAMPLES, (int)(img.getWidth()*img.getHeight()));
+		PixelReader pr = img.getPixelReader();
+		for(int y=0; y < img.getHeight(); y++) {
+			for(int x=0; x < img.getWidth(); x++) {
+				examples.set(0, (int)(x+y*img.getWidth()), pr.getColor(x, y).getBrightness());
+			}
+		}
+		img = new Image("file://./test2.jpg", true);
+		pr = img.getPixelReader();
+		for(int y=0; y < img.getHeight(); y++) {
+			for(int x=0; x < img.getWidth(); x++) {
+				examples.set(1, (int)(x+y*img.getWidth()), pr.getColor(x, y).getBrightness());
+			}
+		}
+		final Matrix y = null; // Unsupervised.
+
+		// Build network
+		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 3*3);
+		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
+		RBMTrainer rbmTrainer = new RBMTrainer();
+		rbmTrainer.batchSize = 10; // 5x20
+		rbmTrainer.learningRate = 0.1;
+		rbmTrainer.maxIterations = 10;
+
+		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, (int)img.getWidth(), (int)img.getHeight(), 5, 5, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
+		convTrainer.operatorTrainer = rbmTrainer;
+		convTrainer.learningRate = 0.1;
+		convTrainer.subwindowsPerExample = 20;
+		convTrainer.examplesPerBatch = 2;
+		convTrainer.maxIterations = 1;
+
+		// Set up UI
+		stage.setTitle("Aij Test UI");
+		GridPane pane = new GridPane();
+		pane.setAlignment(Pos.CENTER);
+		Scene scene = new Scene(pane, WIDTH, HEIGHT);
+		ImageView imageView = new ImageView(visualizeRBM(edgeDetector, false));
+		pane.getChildren().add(imageView);
+		//pane.add(imageView);
+		stage.setScene(scene);
+		stage.show();
+
+		// Repeated draw.
+		Timeline timeline = new Timeline();
+		timeline.setCycleCount(Timeline.INDEFINITE);
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				System.out.println("Training...");
+				convTrainer.train(layer0, examples, y, null);
+				//rbmTrainer.train(edgeDetector, data, null, null);
+				System.out.println("Trained.  Drawing...");
+				Image img = visualizeRBM(edgeDetector, true);
+				imageView.setImage(img);
+				System.out.println(img.getWidth() + " x " + img.getHeight() + " image drawn.  Looping.");
+			}
+		}));
+		timeline.playFromStart();
 	}
 
 	public void mnistDemo(Stage stage) {
@@ -61,7 +126,7 @@ public class Main extends Application {
 		GridPane pane = new GridPane();
 		pane.setAlignment(Pos.CENTER);
 		Scene scene = new Scene(pane, WIDTH, HEIGHT);
-		ImageView imageView = new ImageView(visualizeRBM(edgeDetector));
+		ImageView imageView = new ImageView(visualizeRBM(edgeDetector, false));
 		pane.getChildren().add(imageView);
 		//pane.add(imageView);
 		stage.setScene(scene);
@@ -77,7 +142,7 @@ public class Main extends Application {
 				convTrainer.train(layer0, data, null, null);
 				//rbmTrainer.train(edgeDetector, data, null, null);
 				System.out.println("Trained.  Drawing...");
-				Image img = visualizeRBM(edgeDetector);
+				Image img = visualizeRBM(edgeDetector, false);
 				imageView.setImage(img);
 				System.out.println(img.getWidth() + " x " + img.getHeight() + " image drawn.  Looping.");
 			}
@@ -95,7 +160,7 @@ public class Main extends Application {
 		Matrix x = new Matrix(3, 6, 0.0);
 		x.setRow(0, new double[]{1,1,0,0,0,0});
 		x.setRow(1, new double[]{0,0,1,1,0,0});
-		x.setRow(2, new double[]{0,0,0,0,1,1});
+		x.setRow(2, new double[]{0, 0, 0, 0, 1, 1});
 
 		RBMTrainer trainer = new RBMTrainer();
 		trainer.learningRate = 0.1;
@@ -117,61 +182,6 @@ public class Main extends Application {
 
 		// Run
 		trainer.train(rbm, x, null, updateFunction);
-	}
-
-	public void imageDemo(Stage stage) {
-		// Build UI
-		stage.setTitle("Aij Test UI");
-		GridPane pane = new GridPane();
-		pane.setAlignment(Pos.CENTER);
-		Scene scene = new Scene(pane, WIDTH, HEIGHT);
-		Canvas canvas = new Canvas(WIDTH, HEIGHT);
-		pane.add(canvas, 0, 0);
-		stage.setScene(scene);
-		stage.show();
-
-		// Build data
-		final int NUM_EXAMPLES = 1;
-		Image img = new Image("D:\\tmp\\test.png", true);
-		final Matrix examples = new Matrix(NUM_EXAMPLES, (int)(img.getWidth()*img.getHeight()));
-		PixelReader pr = img.getPixelReader();
-		for(int y=0; y < img.getHeight(); y++) {
-			for(int x=0; x < img.getWidth(); x++) {
-				examples.set(0, (int)(x+y*img.getWidth()), pr.getColor(x, y).getBrightness());
-			}
-		}
-		final Matrix y = null; // Unsupervised.
-
-		// Set up the drawing target.
-		// Clear the image
-		GraphicsContext gc = canvas.getGraphicsContext2D();
-		gc.setFill(Color.BLACK);
-		gc.fillRect(0, 0, WIDTH, HEIGHT);
-
-		WritableImage imgOut = new WritableImage((int)img.getWidth(), (int)img.getHeight());
-		PixelWriter pw = imgOut.getPixelWriter();
-		//pane.add(new ImageView(img), 0, 0);
-
-		// Build backend
-		int CONV_SIZE = 16;
-		OneToOneNetwork network = new OneToOneNetwork(CONV_SIZE*CONV_SIZE, CONV_SIZE*CONV_SIZE);
-		ConvolutionalNetwork convnet = new ConvolutionalNetwork(network, (int)img.getWidth(), (int)img.getHeight(), CONV_SIZE, CONV_SIZE, CONV_SIZE, CONV_SIZE, CONV_SIZE/2, CONV_SIZE/2, ConvolutionalNetwork.EdgeBehavior.ZEROS);
-
-		Runnable updateFunction = new Runnable() {
-			@Override
-			public void run() {
-			}
-		};
-
-		Timeline timeline = new Timeline();
-		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.2), new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-
-			}
-		}));
-		timeline.playFromStart();
 	}
 
 	public void shapeDemo(Stage stage) {
@@ -279,7 +289,7 @@ public class Main extends Application {
 			public void handle(ActionEvent event) {
 				trainer.train(rbm, x, y, updateFunction);
 				try {
-					Image visualized = visualizeRBM(rbm);
+					Image visualized = visualizeRBM(rbm, false);
 					ImageIO.write(SwingFXUtils.fromFXImage(visualized, null), "png", new File("output.png"));
 				} catch(IOException ioe) {
 					System.out.println("Problem writing output.png");
@@ -356,9 +366,10 @@ public class Main extends Application {
 	 * Given an RBM as input, return an image which shows the sensitivity of each pathway.
 	 * Attempts to produce a square image.
 	 * @param rbm
+	 * @param normalizeIntensity
 	 * @return
 	 */
-	public Image visualizeRBM(RestrictedBoltzmannMachine rbm) {
+	public Image visualizeRBM(RestrictedBoltzmannMachine rbm, boolean normalizeIntensity) {
 		int outputNeurons = rbm.getNumOutputs();
 		int inputNeurons = rbm.getNumInputs();
 		int subImgWidth = (int)Math.ceil(Math.sqrt(inputNeurons));
@@ -375,9 +386,23 @@ public class Main extends Application {
 			stim.set(0, i, 1.0);
 			Matrix reconstruction = rbm.reconstruct(stim);
 
+			// Normalize data if needed
+			double low = 0;
+			double high = 1;
+			if(normalizeIntensity) {
+				low = Double.MAX_VALUE;
+				high = Double.MIN_VALUE;
+				for(int j=0; j < reconstruction.numColumns(); j++) {
+					double val = reconstruction.get(0, j);
+					if (val < low) { low = val; }
+					if (val > high) { high = val; }
+				}
+			}
+
 			// Rebuild and draw input to image
 			for(int j=0; j < reconstruction.numColumns(); j++) {
 				double val = reconstruction.get(0, j);
+				val = (val-low)/(high-low);
 				if(val < 0) { val = 0; }
 				if(val > 1) { val = 1; }
 				pw.setColor(subImgOffsetX + j%subImgWidth, subImgOffsetY + j/subImgWidth, Color.gray(val));
