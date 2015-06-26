@@ -37,24 +37,25 @@ public class Main extends Application {
 	}
 
 	public void imageDemo(Stage stage) {
+		// Force all our loaded images to this size, smoothly resizing, and NOT loading in the backgrouns.
+		final int NUM_EXAMPLES = 2;
+		int IMG_WIDTH = 800;
+		int IMG_HEIGHT = 600;
+
 		// Load training data
 		// Build data
-		final int NUM_EXAMPLES = 2;
-		Image img = new Image("file://./test1.jpg", true);
-		final Matrix examples = new Matrix(NUM_EXAMPLES, (int)(img.getWidth()*img.getHeight()));
-		PixelReader pr = img.getPixelReader();
-		for(int y=0; y < img.getHeight(); y++) {
-			for(int x=0; x < img.getWidth(); x++) {
-				examples.set(0, (int)(x+y*img.getWidth()), pr.getColor(x, y).getBrightness());
+		final Matrix examples = new Matrix(NUM_EXAMPLES, IMG_WIDTH*IMG_HEIGHT);
+		for(int i=0; i < NUM_EXAMPLES; i++) {
+			Image img = new Image("file:test" + i + ".jpg", IMG_WIDTH, IMG_HEIGHT, false, true, false);
+
+			PixelReader pr = img.getPixelReader();
+			for (int y = 0; y < IMG_HEIGHT; y++) {
+				for (int x = 0; x < IMG_WIDTH; x++) {
+					examples.set(i, (int) (x + y * IMG_WIDTH), pr.getColor(x, y).getBrightness());
+				}
 			}
 		}
-		img = new Image("file://./test2.jpg", true);
-		pr = img.getPixelReader();
-		for(int y=0; y < img.getHeight(); y++) {
-			for(int x=0; x < img.getWidth(); x++) {
-				examples.set(1, (int)(x+y*img.getWidth()), pr.getColor(x, y).getBrightness());
-			}
-		}
+
 		final Matrix y = null; // Unsupervised.
 
 		// Build network
@@ -65,7 +66,7 @@ public class Main extends Application {
 		rbmTrainer.learningRate = 0.1;
 		rbmTrainer.maxIterations = 10;
 
-		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, (int)img.getWidth(), (int)img.getHeight(), 5, 5, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 5, 5, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
 		convTrainer.operatorTrainer = rbmTrainer;
 		convTrainer.learningRate = 0.1;

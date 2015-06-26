@@ -10,7 +10,7 @@ import java.util.function.UnaryOperator;
 /**
  * Created by josephcatrambone on 6/26/15.
  */
-public class MaxPoolingNetwork extends FunctionNetwork implements Serializable, Network {
+public class MaxPoolingNetwork extends FunctionNetwork { // Implicitly implements Serializable, Network
 	public MaxPoolingNetwork(int inputSize) {
 		super(inputSize, 1);
 
