@@ -63,7 +63,7 @@ Functions ending with "_i" are mutating and will modify the host matrix.
 
 ## TODO
 
-* Softmax/Downsampling Network (Maybe I'll subclass 1:1 for this)
+* Softmax/Downsampling Network (Maybe I'll subclass FunctionNetwork for this)
 * LSTM Recurrent Network + Trainer
 * Gated Feedback Network + Trainer
 * Nice tool to display the RBM activations.
@@ -85,6 +85,6 @@ but there was so much overlap it made sense to split out the layer type.
 
 The matrix class is a very thin wrapper which was done because we might want to swap out jblas in the future.
 
-## Why make the 'OneToOne' network?  What is it?
+## Why make the 'FunctionNetwork'?  What is it?
 
-A one to one network is a network with uses a function to calculate the output value instead of any weights.  It also has a function to 'listen in' as the predict and reconstruct operators are called.  That might seem silly, but it's helpful for me to be able to see what is being passed through a network when predict and reconstruct are called.  It also helps when making the convolution trainer, since I can write convolve once and then use this method to grab training data from the network.  I may, in a future release, rename this FunctionNetwork.
+Sometimes it's useful to be able to define a network with a deterministic function.  A function network is one which takes an explicit function which maps the input to the output.  It also has a function to 'listen in' as the predict and reconstruct operators are called.  It's helpful (for debugging and convolution, among others) to be able to see what is being passed through a network when predict and reconstruct are called.
