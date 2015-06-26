@@ -252,6 +252,18 @@ public class Matrix implements Serializable {
 		return new Matrix(m.columnMeans());
 	}
 
+	/*** max
+	 * Get the maximum value of the matrix.
+	 * @return
+	 */
+	public double max() { return this.m.max(); }
+
+	/*** min
+	 * Get the minimum value of the matrix.
+	 * @return
+	 */
+	public double min() { return this.m.min(); }
+
 	public Matrix repmat(int rows, int cols) {
 		return new Matrix(m.repmat(rows, cols));
 	}

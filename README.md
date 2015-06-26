@@ -63,10 +63,10 @@ Functions ending with "_i" are mutating and will modify the host matrix.
 
 ## TODO
 
-* Softmax/Downsampling Network (Maybe I'll subclass FunctionNetwork for this)
 * LSTM Recurrent Network + Trainer
 * Gated Feedback Network + Trainer
 * Nice tool to display the RBM activations.
+* Add a derivative function to networks so it's possible to backprop across multiple networks for fine-tuning.
 
 # Why did you?
 
