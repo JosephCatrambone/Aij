@@ -1,7 +1,6 @@
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.networks.ConvolutionalNetwork;
-import com.josephcatrambone.aij.networks.Network;
-import com.josephcatrambone.aij.networks.OneToOneNetwork;
+import com.josephcatrambone.aij.networks.FunctionNetwork;
 import org.junit.Test;
 
 import java.util.function.Consumer;
@@ -21,7 +20,7 @@ public class ConvolutionTest {
 		// 6 7 8 9 0
 		// 1 2 3 4 5
 		Matrix m = new Matrix(new double[][] {{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25}});
-		OneToOneNetwork oneToOne = new OneToOneNetwork(9, 0); // 3x3
+		FunctionNetwork oneToOne = new FunctionNetwork(9, 0); // 3x3
 		ConvolutionalNetwork cn = new ConvolutionalNetwork(oneToOne, 5, 5, 3, 3, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 
 		oneToOne.predictionMonitor = new Consumer<Matrix>() {

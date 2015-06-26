@@ -3,7 +3,7 @@ package com.josephcatrambone.aij.trainers;
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.networks.ConvolutionalNetwork;
 import com.josephcatrambone.aij.networks.Network;
-import com.josephcatrambone.aij.networks.OneToOneNetwork;
+import com.josephcatrambone.aij.networks.FunctionNetwork;
 
 import java.util.Random;
 import java.util.function.Consumer;
@@ -38,7 +38,7 @@ public class ConvolutionalTrainer implements Trainer {
 		// Remove the old operator (that we are training) from the network and replace with our example spy.
 		Network op = cn.getOperator();
 
-		OneToOneNetwork netSpy = new OneToOneNetwork(op.getNumInputs(), op.getNumOutputs());
+		FunctionNetwork netSpy = new FunctionNetwork(op.getNumInputs(), op.getNumOutputs());
 		Matrix windowData = new Matrix(subwindowsPerExample, op.getNumInputs());
 		netSpy.predictionMonitor = new Consumer<Matrix>() {
 			int i=0;

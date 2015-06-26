@@ -11,7 +11,7 @@ import java.util.function.UnaryOperator;
  * If output size is zero or the preduction function is null, reutrns null.
  * Created by Jo on 6/7/2015.
  */
-public class OneToOneNetwork implements Network {
+public class FunctionNetwork implements Network {
 	private int inputSize, outputSize;
 
 	public Consumer <Matrix> predictionMonitor = null;
@@ -19,7 +19,7 @@ public class OneToOneNetwork implements Network {
 	public UnaryOperator <Matrix> predictionFunction = null;
 	public UnaryOperator <Matrix> reconstructionFunction = UnaryOperator.identity();
 
-	public OneToOneNetwork(int inputSize, int outputSize) {
+	public FunctionNetwork(int inputSize, int outputSize) {
 		this.inputSize = inputSize;
 		this.outputSize = outputSize;
 	}
