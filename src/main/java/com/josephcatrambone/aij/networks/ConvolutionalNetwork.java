@@ -70,7 +70,9 @@ public class ConvolutionalNetwork implements Network, Serializable{
 		for(int exampleIndex = 0; exampleIndex < input.numRows(); exampleIndex++) {
 			// For each example row, reshape to a 2D 'image'.
 			Matrix exampleIn = input.getRow(exampleIndex).reshape_i(eH, eW);
-			Matrix exampleOut = new Matrix(cH *(eH/eYStep), cW *(eW/eXStep));
+			Matrix exampleOut = null;
+			if(hasOutput) { exampleOut = new Matrix(cH *(eH/eYStep), cW *(eW/eXStep)); }
+
 			for(int y=0; y < eH/eYStep; y++) { // y is the sample multiplier.
 				for(int x=0; x < eW/eXStep; x++) {
 					// We have a global x/y offset, now.
@@ -105,7 +107,7 @@ public class ConvolutionalNetwork implements Network, Serializable{
 					// If a result is given by the op, reshape it and apply to the output.
 					if(hasOutput) {
 						result.reshape_i(cH, cW);
-						exampleOut.addSubmatrix_i(result, y*cYStep, cXStep); // We may want to overlay the 'conv' in some direction.
+						exampleOut.addSubmatrix_i(result, y*cYStep, x*cXStep); // We may want to overlay the 'conv' in some direction.
 						//exampleOut.setSubmatrix_i(result, y*cH, x*cW);
 					}
 				}
