@@ -22,8 +22,6 @@ public class ConvolutionalTrainer implements Trainer {
 	public double earlyStopError = 0.0; // If error is less than this, stop early.
 	public int examplesPerBatch = 1; // We will take this many examples from the training set.
 	public int subwindowsPerExample = 1; // We will take this many windows per example.
-	public double learningRate = 0.1;
-	public double momentum = 0.0;
 	public double lastError = Double.MAX_VALUE;
 
 	private void log(String msg) {
