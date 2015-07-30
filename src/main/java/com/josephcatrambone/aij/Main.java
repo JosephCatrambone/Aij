@@ -1,6 +1,7 @@
 package com.josephcatrambone.aij;
 
 import com.josephcatrambone.aij.networks.ConvolutionalNetwork;
+import com.josephcatrambone.aij.networks.FunctionNetwork;
 import com.josephcatrambone.aij.networks.NeuralNetwork;
 import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
 import com.josephcatrambone.aij.trainers.BackpropTrainer;
@@ -38,9 +39,9 @@ public class Main extends Application {
 
 	public void imageDemo(Stage stage) {
 		// Force all our loaded images to this size, smoothly resizing, and NOT loading in the backgrouns.
-		final int NUM_EXAMPLES = 2;
-		int IMG_WIDTH = 800;
-		int IMG_HEIGHT = 600;
+		final int NUM_EXAMPLES = 5;
+		int IMG_WIDTH = 128;
+		int IMG_HEIGHT = 128;
 
 		// Load training data
 		// Build data
@@ -59,19 +60,19 @@ public class Main extends Application {
 		final Matrix y = null; // Unsupervised.
 
 		// Build network
-		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 3*3);
+		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(16*16, 3*3);
 		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
-		rbmTrainer.batchSize = 10; // 5x20
+		rbmTrainer.batchSize = 10;
 		rbmTrainer.learningRate = 0.1;
-		rbmTrainer.maxIterations = 10;
+		rbmTrainer.maxIterations = 100;
 
-		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 5, 5, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 16, 16, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		//ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 28, 28, 8, 8, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
 		convTrainer.operatorTrainer = rbmTrainer;
-		convTrainer.learningRate = 0.1;
 		convTrainer.subwindowsPerExample = 20;
-		convTrainer.examplesPerBatch = 2;
+		convTrainer.examplesPerBatch = 10;
 		convTrainer.maxIterations = 1;
 
 		// Set up UI
@@ -85,19 +86,40 @@ public class Main extends Application {
 		stage.setScene(scene);
 		stage.show();
 
+		Thread trainerThread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				while(true) {
+					synchronized (convTrainer) {
+						if (!convTrainer.isTraining) {
+							System.out.println("Training...");
+							convTrainer.train(layer0, examples, y, null);
+						}
+					}
+					System.out.println("Sleeping.  Error: " + rbmTrainer.lastError);
+					try { Thread.sleep(1000); } catch (InterruptedException ie) {}
+				}
+			}
+		});
+		trainerThread.start();
+
 		// Repeated draw.
 		Timeline timeline = new Timeline();
 		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), new EventHandler<ActionEvent>() {
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(2.0), new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
-				System.out.println("Training...");
-				convTrainer.train(layer0, examples, y, null);
-				//rbmTrainer.train(edgeDetector, data, null, null);
-				System.out.println("Trained.  Drawing...");
-				Image img = visualizeRBM(edgeDetector, true);
-				imageView.setImage(img);
-				System.out.println(img.getWidth() + " x " + img.getHeight() + " image drawn.  Looping.");
+				// If another action happens to fire in the meantime, don't go crazy.
+				synchronized (convTrainer) {
+					if(!convTrainer.isTraining) {
+						//rbmTrainer.train(edgeDetector, data, null, null);
+						System.out.println("Drawing.");
+						Image img = visualizeRBM(edgeDetector, true);
+						imageView.setImage(img);
+					} else {
+						System.out.println("Drawing deferred.  Training in progres...");
+					}
+				}
 			}
 		}));
 		timeline.playFromStart();
@@ -117,7 +139,6 @@ public class Main extends Application {
 		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, 28, 28, 5, 5, 16, 16, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
 		convTrainer.operatorTrainer = rbmTrainer;
-		convTrainer.learningRate = 0.1;
 		convTrainer.subwindowsPerExample = 20;
 		convTrainer.examplesPerBatch = 5;
 		convTrainer.maxIterations = 1;
