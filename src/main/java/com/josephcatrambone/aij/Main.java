@@ -21,6 +21,7 @@ import javafx.scene.image.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 
 import javax.imageio.ImageIO;
@@ -42,6 +43,8 @@ public class Main extends Application {
 		final int NUM_EXAMPLES = 5;
 		int IMG_WIDTH = 128;
 		int IMG_HEIGHT = 128;
+		int DISPLAY_WIDTH = 512;
+		int DISPLAY_HEIGHT = 512;
 
 		// Load training data
 		// Build data
@@ -60,18 +63,18 @@ public class Main extends Application {
 		final Matrix y = null; // Unsupervised.
 
 		// Build network
-		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(16*16, 3*3);
+		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 8*8);
 		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10;
-		rbmTrainer.learningRate = 0.1;
-		rbmTrainer.maxIterations = 100;
+		rbmTrainer.learningRate = 0.001;
+		rbmTrainer.maxIterations = 1000;
 
-		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 16, 16, 3, 3, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 5, 5, 8, 8, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		//ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 28, 28, 8, 8, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
 		convTrainer.operatorTrainer = rbmTrainer;
-		convTrainer.subwindowsPerExample = 20;
+		convTrainer.subwindowsPerExample = 100;
 		convTrainer.examplesPerBatch = 10;
 		convTrainer.maxIterations = 1;
 
@@ -81,26 +84,35 @@ public class Main extends Application {
 		pane.setAlignment(Pos.CENTER);
 		Scene scene = new Scene(pane, WIDTH, HEIGHT);
 		ImageView imageView = new ImageView(visualizeRBM(edgeDetector, false));
+		imageView.setFitWidth(DISPLAY_WIDTH);
+		imageView.setFitHeight(DISPLAY_HEIGHT);
 		pane.getChildren().add(imageView);
 		//pane.add(imageView);
 		stage.setScene(scene);
 		stage.show();
 
-		Thread trainerThread = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				while(true) {
-					synchronized (convTrainer) {
-						if (!convTrainer.isTraining) {
-							System.out.println("Training...");
-							convTrainer.train(layer0, examples, y, null);
-						}
+		Runnable trainerRunnable = () -> {
+			while(true) {
+				synchronized (convTrainer) {
+					if (!convTrainer.isTraining) {
+						System.out.println("Training...");
+						convTrainer.train(layer0, examples, y, null);
 					}
-					System.out.println("Sleeping.  Error: " + rbmTrainer.lastError);
-					try { Thread.sleep(1000); } catch (InterruptedException ie) {}
+				}
+				// Stop if interrupted.
+				if(Thread.currentThread().isInterrupted()) {
+					return;
+				}
+				// Yield to give someone else a chance to run.
+				try {
+					Thread.sleep(10);
+				} catch(InterruptedException ie) {
+					// If interrupted, abort.
+					return;
 				}
 			}
-		});
+		};
+		Thread trainerThread = new Thread(trainerRunnable);
 		trainerThread.start();
 
 		// Repeated draw.
@@ -111,7 +123,7 @@ public class Main extends Application {
 			public void handle(ActionEvent event) {
 				// If another action happens to fire in the meantime, don't go crazy.
 				synchronized (convTrainer) {
-					if(!convTrainer.isTraining) {
+					if (!convTrainer.isTraining) {
 						//rbmTrainer.train(edgeDetector, data, null, null);
 						System.out.println("Drawing.");
 						Image img = visualizeRBM(edgeDetector, true);
@@ -123,6 +135,14 @@ public class Main extends Application {
 			}
 		}));
 		timeline.playFromStart();
+
+		stage.setOnCloseRequest((WindowEvent w) -> {
+			timeline.stop();
+			trainerThread.interrupt();
+			try{
+				trainerThread.join(1000);
+			} catch(InterruptedException ie) {}
+		});
 	}
 
 	public void mnistDemo(Stage stage) {
