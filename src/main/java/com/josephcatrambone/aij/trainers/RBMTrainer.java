@@ -28,7 +28,6 @@ public class RBMTrainer implements Trainer {
 	}
 
 	public void train(Network net, Matrix inputs, Matrix labels, Runnable notification) {
-		Random random = new Random();
 		RestrictedBoltzmannMachine rbm = (RestrictedBoltzmannMachine)net; // We only train neural networks.
 		int[] sampleIndices = new int[batchSize];
 
