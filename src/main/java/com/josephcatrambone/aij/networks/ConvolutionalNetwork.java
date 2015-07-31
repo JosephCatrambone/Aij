@@ -93,6 +93,13 @@ public class ConvolutionalNetwork implements Network, Serializable{
 									case MIRROR:
 										break;
 									case WRAP:
+										// Wrap on the negative side with neg-mod.
+										while(exampleY < 0) { exampleY += eH; }
+										while(exampleX < 0) { exampleX += eW; }
+										// And on the top-side with regular mod.
+										exampleY = exampleY % eH;
+										exampleX = exampleX % eW;
+										subsample.set(windowY, windowX, exampleIn.get(exampleY, exampleX));
 										break;
 								}
 							} else {
