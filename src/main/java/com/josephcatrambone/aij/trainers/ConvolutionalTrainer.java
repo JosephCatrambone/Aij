@@ -15,6 +15,7 @@ import java.util.function.UnaryOperator;
  * Created by jcatrambone on 5/29/15.
  */
 public class ConvolutionalTrainer implements Trainer {
+	Random random = new Random();
 	public boolean isTraining = false;
 	public Trainer operatorTrainer = null; // A convolutional network has a trainer. This is the trainer for said network.
 	public int notificationIncrement = 0; // If > 0, when iter%notificationIncrement == 0, run notification func.
@@ -30,7 +31,6 @@ public class ConvolutionalTrainer implements Trainer {
 
 	public void train(Network net, Matrix inputs, Matrix labels, Runnable notification) {
 		isTraining = true;
-		Random random = new Random();
 		ConvolutionalNetwork cn = (ConvolutionalNetwork)net;
 
 		// Remove the old operator (that we are training) from the network and replace with our example spy.
