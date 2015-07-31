@@ -27,6 +27,7 @@ import javafx.util.Duration;
 import javax.imageio.ImageIO;
 import java.io.*;
 import java.util.Random;
+import java.util.function.Consumer;
 
 
 public class Main extends Application {
@@ -40,11 +41,15 @@ public class Main extends Application {
 
 	public void imageDemo(Stage stage) {
 		// Force all our loaded images to this size, smoothly resizing, and NOT loading in the backgrouns.
-		final int NUM_EXAMPLES = 5;
+		final int NUM_EXAMPLES = 4;
 		int IMG_WIDTH = 128;
 		int IMG_HEIGHT = 128;
 		int DISPLAY_WIDTH = 512;
 		int DISPLAY_HEIGHT = 512;
+		int RBM_WIDTH = 7;
+		int RBM_HEIGHT = 7;
+		int OUT_WIDTH = 16;
+		int OUT_HEIGHT = 16;
 
 		// Load training data
 		// Build data
@@ -62,20 +67,37 @@ public class Main extends Application {
 
 		final Matrix y = null; // Unsupervised.
 
+		// DEBUG
+
+		Consumer <Matrix> trainingDataMonitor = (Matrix m) -> {
+			WritableImage visualized = new WritableImage(RBM_WIDTH, RBM_HEIGHT);
+			PixelWriter pw = visualized.getPixelWriter();
+			for(int iy=0; iy < RBM_HEIGHT; iy++) {
+				for(int ix=0; ix < RBM_WIDTH; ix++) {
+					pw.setColor(ix, iy, Color.gray(m.get(0, ix + iy*RBM_WIDTH)));
+				}
+			}
+			try {
+				ImageIO.write(SwingFXUtils.fromFXImage(visualized, null), "png", new File("output.png"));
+			} catch(IOException ioe) {}
+		};
+
+		// DEBUG
+
 		// Build network
-		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 8*8);
+		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(RBM_WIDTH*RBM_HEIGHT, OUT_WIDTH*OUT_HEIGHT);
 		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10;
 		rbmTrainer.learningRate = 0.001;
-		rbmTrainer.maxIterations = 1000;
+		rbmTrainer.maxIterations = 10;
 
-		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 5, 5, 8, 8, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, RBM_WIDTH, RBM_HEIGHT, OUT_WIDTH, OUT_HEIGHT, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		//ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 28, 28, 8, 8, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
 		convTrainer.operatorTrainer = rbmTrainer;
-		convTrainer.subwindowsPerExample = 100;
-		convTrainer.examplesPerBatch = 10;
+		convTrainer.subwindowsPerExample = 1000;
+		convTrainer.examplesPerBatch = NUM_EXAMPLES;
 		convTrainer.maxIterations = 1;
 
 		// Set up UI
@@ -105,6 +127,7 @@ public class Main extends Application {
 				}
 				// Yield to give someone else a chance to run.
 				try {
+					System.out.println("Training error:" + rbmTrainer.lastError);
 					Thread.sleep(10);
 				} catch(InterruptedException ie) {
 					// If interrupted, abort.
@@ -152,14 +175,14 @@ public class Main extends Application {
 		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 16*16);
 		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
-		rbmTrainer.batchSize = 10; // 5x20
-		rbmTrainer.learningRate = 0.1;
+		rbmTrainer.batchSize = 20; // 5x20
+		rbmTrainer.learningRate = 0.05;
 		rbmTrainer.maxIterations = 10;
 
 		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, 28, 28, 5, 5, 16, 16, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
 		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
 		convTrainer.operatorTrainer = rbmTrainer;
-		convTrainer.subwindowsPerExample = 20;
+		convTrainer.subwindowsPerExample = 1000;
 		convTrainer.examplesPerBatch = 5;
 		convTrainer.maxIterations = 1;
 
@@ -414,14 +437,15 @@ public class Main extends Application {
 	public Image visualizeRBM(RestrictedBoltzmannMachine rbm, boolean normalizeIntensity) {
 		int outputNeurons = rbm.getNumOutputs();
 		int inputNeurons = rbm.getNumInputs();
+		int xSampleCount = (int)Math.ceil(Math.sqrt(outputNeurons));
 		int subImgWidth = (int)Math.ceil(Math.sqrt(inputNeurons));
 		int imgWidth = (int)Math.ceil(Math.sqrt(outputNeurons))*subImgWidth;
 		WritableImage output = new WritableImage(imgWidth, imgWidth);
 		PixelWriter pw = output.getPixelWriter();
 
 		for(int i=0; i < outputNeurons; i++) {
-			int subImgOffsetX = subImgWidth*(i%((int)Math.ceil(Math.sqrt(outputNeurons))));
-			int subImgOffsetY = subImgWidth*(i/((int)Math.ceil(Math.sqrt(outputNeurons))));
+			int subImgOffsetX = subImgWidth*(i%xSampleCount);
+			int subImgOffsetY = subImgWidth*(i/xSampleCount);
 
 			// Set one item hot and reconstruct
 			Matrix stim = new Matrix(1, outputNeurons);
@@ -447,7 +471,7 @@ public class Main extends Application {
 				val = (val-low)/(high-low);
 				if(val < 0) { val = 0; }
 				if(val > 1) { val = 1; }
-				pw.setColor(subImgOffsetX + j%subImgWidth, subImgOffsetY + j/subImgWidth, Color.gray(val));
+				pw.setColor(subImgOffsetX + (j%subImgWidth), subImgOffsetY + (j/subImgWidth), Color.gray(val));
 			}
 		}
 
