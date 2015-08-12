@@ -3,6 +3,7 @@ package com.josephcatrambone.aij.networks;
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.layers.Layer;
 
+import java.io.Serializable;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
@@ -11,7 +12,7 @@ import java.util.function.UnaryOperator;
  * If output size is zero or the preduction function is null, reutrns null.
  * Created by Jo on 6/7/2015.
  */
-public class FunctionNetwork implements Network {
+public class FunctionNetwork implements Network, Serializable {
 	private int inputSize, outputSize;
 
 	public Consumer <Matrix> predictionMonitor = null;

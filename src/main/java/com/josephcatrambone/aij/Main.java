@@ -1,11 +1,9 @@
 package com.josephcatrambone.aij;
 
-import com.josephcatrambone.aij.networks.ConvolutionalNetwork;
-import com.josephcatrambone.aij.networks.FunctionNetwork;
-import com.josephcatrambone.aij.networks.NeuralNetwork;
-import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
+import com.josephcatrambone.aij.networks.*;
 import com.josephcatrambone.aij.trainers.BackpropTrainer;
 import com.josephcatrambone.aij.trainers.ConvolutionalTrainer;
+import com.josephcatrambone.aij.trainers.MeanFilterTrainer;
 import com.josephcatrambone.aij.trainers.RBMTrainer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -15,6 +13,7 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.*;
@@ -27,6 +26,7 @@ import javafx.util.Duration;
 import javax.imageio.ImageIO;
 import java.io.*;
 import java.util.Random;
+import java.util.Scanner;
 import java.util.function.Consumer;
 
 
@@ -41,28 +41,32 @@ public class Main extends Application {
 
 	public void imageDemo(Stage stage) {
 		// Force all our loaded images to this size, smoothly resizing, and NOT loading in the backgrouns.
-		final int NUM_EXAMPLES = 4;
-		int IMG_WIDTH = 128;
-		int IMG_HEIGHT = 128;
+		final int NUM_EXAMPLES = 500;
+		int IMG_WIDTH = 64;
+		int IMG_HEIGHT = 64;
 		int DISPLAY_WIDTH = 512;
 		int DISPLAY_HEIGHT = 512;
-		int RBM_WIDTH = 7;
-		int RBM_HEIGHT = 7;
-		int OUT_WIDTH = 16;
-		int OUT_HEIGHT = 16;
+		int RBM_WIDTH = 4;
+		int RBM_HEIGHT = 4;
+		int OUT_WIDTH = 8;
+		int OUT_HEIGHT = 8;
 
-		// Load training data
-		// Build data
 		final Matrix examples = new Matrix(NUM_EXAMPLES, IMG_WIDTH*IMG_HEIGHT);
-		for(int i=0; i < NUM_EXAMPLES; i++) {
-			Image img = new Image("file:test" + i + ".jpg", IMG_WIDTH, IMG_HEIGHT, false, true, false);
 
-			PixelReader pr = img.getPixelReader();
-			for (int y = 0; y < IMG_HEIGHT; y++) {
-				for (int x = 0; x < IMG_WIDTH; x++) {
-					examples.set(i, (int) (x + y * IMG_WIDTH), pr.getColor(x, y).getBrightness());
-				}
+		try {
+			Scanner scanner = new Scanner(new File("test_images.txt")); // Read filenames from stdin
+
+			// Load training data
+			// Build data
+			for(int i=0; i < NUM_EXAMPLES; i++) {
+				// Read image dat
+				Image img = new Image("file:" + scanner.nextLine(), IMG_WIDTH, IMG_HEIGHT, true, true, false);
+
+				examples.setRow(i, imageToMatrix(img, IMG_WIDTH, IMG_HEIGHT).reshape_i(1, IMG_WIDTH*IMG_HEIGHT));
 			}
+		} catch(FileNotFoundException fnfe) {
+			System.err.println("Unable to load image: " + fnfe);
+			System.exit(-1);
 		}
 
 		final Matrix y = null; // Unsupervised.
@@ -85,20 +89,36 @@ public class Main extends Application {
 		// DEBUG
 
 		// Build network
+
+		// Train the mean filter on the input
+		MeanFilterNetwork meanFilter = new MeanFilterNetwork(RBM_WIDTH*RBM_HEIGHT);
+		MeanFilterTrainer meanFilterTrainer = new MeanFilterTrainer();
+
+		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(meanFilter, IMG_WIDTH, IMG_HEIGHT, RBM_WIDTH, RBM_HEIGHT, RBM_WIDTH, RBM_HEIGHT, RBM_WIDTH, RBM_HEIGHT, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalTrainer layer0Trainer = new ConvolutionalTrainer();
+		layer0Trainer.operatorTrainer = meanFilterTrainer;
+		layer0Trainer.subwindowsPerExample = 10000;
+		layer0Trainer.examplesPerBatch = NUM_EXAMPLES;
+		layer0Trainer.maxIterations = 1;
+
+		layer0Trainer.train(layer0, examples, null, null);
+
+		Matrix normalizedExamples = layer0.predict(examples);
+
 		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(RBM_WIDTH*RBM_HEIGHT, OUT_WIDTH*OUT_HEIGHT);
 		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10;
-		rbmTrainer.learningRate = 0.001;
+		rbmTrainer.learningRate = 0.01;
 		rbmTrainer.maxIterations = 10;
 
-		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, RBM_WIDTH, RBM_HEIGHT, OUT_WIDTH, OUT_HEIGHT, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
-		//ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, 28, 28, 8, 8, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
-		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
-		convTrainer.operatorTrainer = rbmTrainer;
-		convTrainer.subwindowsPerExample = 1000;
-		convTrainer.examplesPerBatch = NUM_EXAMPLES;
-		convTrainer.maxIterations = 1;
+		//ConvolutionalNetwork layer1 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, RBM_WIDTH, RBM_HEIGHT, OUT_WIDTH, OUT_HEIGHT, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalNetwork layer1 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, RBM_WIDTH, RBM_HEIGHT, OUT_WIDTH, OUT_HEIGHT, RBM_WIDTH, RBM_HEIGHT, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalTrainer layer1Trainer = new ConvolutionalTrainer();
+		layer1Trainer.operatorTrainer = rbmTrainer;
+		layer1Trainer.subwindowsPerExample = 1000;
+		layer1Trainer.examplesPerBatch = NUM_EXAMPLES;
+		layer1Trainer.maxIterations = 1;
 
 		// Set up UI
 		stage.setTitle("Aij Test UI");
@@ -115,10 +135,10 @@ public class Main extends Application {
 
 		Runnable trainerRunnable = () -> {
 			while(true) {
-				synchronized (convTrainer) {
-					if (!convTrainer.isTraining) {
+				synchronized (layer1Trainer) {
+					if (!layer1Trainer.isTraining) {
 						System.out.println("Training...");
-						convTrainer.train(layer0, examples, y, null);
+						layer1Trainer.train(layer1, normalizedExamples, y, null);
 					}
 				}
 				// Stop if interrupted.
@@ -145,8 +165,8 @@ public class Main extends Application {
 			@Override
 			public void handle(ActionEvent event) {
 				// If another action happens to fire in the meantime, don't go crazy.
-				synchronized (convTrainer) {
-					if (!convTrainer.isTraining) {
+				synchronized (layer1Trainer) {
+					if (!layer1Trainer.isTraining) {
 						//rbmTrainer.train(edgeDetector, data, null, null);
 						System.out.println("Drawing.");
 						Image img = visualizeRBM(edgeDetector, true);
@@ -165,6 +185,8 @@ public class Main extends Application {
 			try{
 				trainerThread.join(1000);
 			} catch(InterruptedException ie) {}
+			saveNetwork(meanFilter, "meanFilter_8x8.net");
+			saveNetwork(edgeDetector, "rbm0_8x8_8x8.net");
 		});
 	}
 
@@ -427,6 +449,32 @@ public class Main extends Application {
 		timeline.playFromStart();
 	}
 
+	public Matrix imageToMatrix(Image image, int width, int height) {
+		// Return a matrix with the given dimensions, image scaled to the appropriate size.
+		// If the aspect ratio of the image is different, fill with black around the edges.
+		ImageView imageView = new ImageView();
+		imageView.setImage(image);
+		imageView.setFitWidth(width);
+		imageView.setFitHeight(height);
+		imageView.setPreserveRatio(true);
+		imageView.setSmooth(true);
+
+		WritableImage scaledImage = new WritableImage(width, height);
+
+		SnapshotParameters parameters = new SnapshotParameters();
+		parameters.setFill(Color.TRANSPARENT);
+		imageView.snapshot(parameters, scaledImage);
+
+		PixelReader img = scaledImage.getPixelReader();
+		Matrix output = new Matrix(height, width);
+		for(int y=0; y < height; y++) {
+			for(int x=0; x < width; x++) {
+				output.set(y, x, img.getColor(x, y).getBrightness());
+			}
+		}
+		return output;
+	}
+
 	/*** visualizeRBM
 	 * Given an RBM as input, return an image which shows the sensitivity of each pathway.
 	 * Attempts to produce a square image.
@@ -515,6 +563,31 @@ public class Main extends Application {
 			System.exit(-1);
 		}
 		return trainingData;
+	}
+
+	public boolean saveNetwork(Network n, String filename) {
+		try {
+			ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(new File(filename)));
+			oos.writeObject(n);
+			oos.close();
+		} catch(IOException ioe) {
+			return false;
+		}
+		return true;
+	}
+
+	public Network loadNetwork(String filename) {
+		Network net = null;
+		try {
+			ObjectInputStream ois = new ObjectInputStream(new FileInputStream(new File(filename)));
+			net = (Network)ois.readObject();
+			ois.close();
+		} catch(IOException ioe) {
+			return null;
+		} catch(ClassNotFoundException cnfe) {
+			return null;
+		}
+		return net;
 	}
 
 	public static void main(String[] args) {

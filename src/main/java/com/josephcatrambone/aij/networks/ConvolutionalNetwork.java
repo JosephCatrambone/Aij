@@ -15,7 +15,7 @@ import java.io.Serializable;
  * [1 2 3 4 5 6]
  * [
  */
-public class ConvolutionalNetwork implements Network, Serializable{
+public class ConvolutionalNetwork implements Network, Serializable {
 	public enum EdgeBehavior {ZEROS, REPEAT, MIRROR, WRAP};
 
 	private Network operator;
