@@ -55,11 +55,11 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 		return reconstruct(output, true);
 	}
 
-	private Matrix reconstruct(Matrix output, boolean activate) {
+	private Matrix reconstruct(Matrix output, boolean stochastic) {
 		hidden.setActivations(output);
 		visible.setActivities(hidden.getActivations().multiply(weights.transpose()));
-		if(activate) {
-			return visible.getActivations(); // NOTE: This is NON-STANDARD!  Normally we just get activities.
+		if(stochastic) {
+			return visible.getActivations().elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
 		} else {
 			return visible.getActivities();
 		}

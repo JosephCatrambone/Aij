@@ -17,8 +17,8 @@ public class LinearLayer implements Layer, Serializable {
 	public LinearLayer(int size) {
 		dirty = true;
 		this.size = size;
-		bias = new Matrix(1, size, -1.0);
-		activity = new Matrix(1, size, 0.0);
+		bias = Matrix.zeros(1, size);
+		activity = Matrix.zeros(1, size);
 	}
 
 	@Override
