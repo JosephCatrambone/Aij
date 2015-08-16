@@ -4,16 +4,21 @@ import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.layers.*;
 
 import java.io.Serializable;
+import java.util.Random;
 
 /**
  * Created by jcatrambone on 5/28/15.
  */
 public class RestrictedBoltzmannMachine implements Network, Serializable {
+	final double ACTIVE_STATE = 1.0;
+	final double INACTIVE_STATE = 0.0;
 
+	Random random;
 	Layer visible, hidden;
 	Matrix weights;
 
 	public RestrictedBoltzmannMachine(int numVisible, int numHidden) {
+		random = new Random();
 		visible = new LinearLayer(numVisible);
 		hidden = new SigmoidLayer(numHidden);
 		weights = Matrix.random(numVisible, numHidden);
@@ -42,15 +47,22 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	public Matrix predict(Matrix input) {
 		visible.setActivities(input);
 		hidden.setActivities(visible.getActivations().multiply(weights));
-		return hidden.getActivations();
+		return hidden.getActivations().elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
 	}
 
 	@Override
 	public Matrix reconstruct(Matrix output) {
+		return reconstruct(output, true);
+	}
+
+	private Matrix reconstruct(Matrix output, boolean activate) {
 		hidden.setActivations(output);
 		visible.setActivities(hidden.getActivations().multiply(weights.transpose()));
-		//return visible.getActivities();
-		return visible.getActivations(); // NOTE: This is NON-STANDARD!  Normally we just get activities.
+		if(activate) {
+			return visible.getActivations(); // NOTE: This is NON-STANDARD!  Normally we just get activities.
+		} else {
+			return visible.getActivities();
+		}
 	}
 
 	@Override
@@ -113,7 +125,7 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 		// Do numCycles gibbs samples to produce numSample sampels.
 		Matrix output = Matrix.random(numSamples, visible.getSize());
 		for(int i=0; i < numCycles; i++) {
-			output = reconstruct(predict(output));
+			output = reconstruct(predict(output), false);
 		}
 		return output;
 	}

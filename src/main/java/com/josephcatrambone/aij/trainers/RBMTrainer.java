@@ -56,15 +56,11 @@ public class RBMTrainer implements Trainer {
 			Matrix negative_product = negative_visible_probabilities.transpose().multiply(negative_hidden_probabilities);//neg_associations = np.dot(neg_visible_probs.T, neg_hidden_probs)
 
 			// Update weights.
-			rbm.setWeights(0, rbm.getWeights(0).add(positive_product.subtract(negative_product).elementMultiply_i(learningRate)));
-			//gw = (np.dot(h0, v0) - np.dot(h1, v1)) / len(visible_batch)
-			//self.weights += self.learning_rate * ((pos_associations - neg_associations) / num_examples)
+			rbm.setWeights(0, rbm.getWeights(0).add(positive_product.subtract(negative_product).elementMultiply_i(learningRate/(float)batchSize)));
 			// TODO: Recheck these bias updates.  I think they're wrong.
-			//gv = (v0 - v1).mean(axis=0)
-			//gh = (h0 - h1).mean(axis=1)
-			rbm.getVisible().setBias(rbm.getVisible().getBias().add(x.subtract(negative_visible_probabilities).meanRow().elementMultiply_i(learningRate)));
-			rbm.getHidden().setBias(rbm.getHidden().getBias().add(positive_hidden_probabilities.subtract(negative_hidden_probabilities).meanRow().elementMultiply_i(learningRate)));
-			lastError = x.subtract(negative_visible_activities).elementOp_i(v -> v*v).sum(); //np.sum((data - neg_visible_probs) ** 2)
+			rbm.getVisible().setBias(rbm.getVisible().getBias().add(x.subtract(negative_visible_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
+			rbm.getHidden().setBias(rbm.getHidden().getBias().add(positive_hidden_probabilities.subtract(negative_hidden_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
+			lastError = x.subtract(negative_visible_probabilities).elementOp_i(v -> v*v).sum();
 
 			if(notification != null && notificationIncrement > 0 && (i+1)%notificationIncrement == 0) {
 				notification.run();
