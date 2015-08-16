@@ -2,6 +2,7 @@ package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.layers.*;
+import org.omg.PortableInterceptor.ACTIVE;
 
 import java.io.Serializable;
 import java.util.Random;
@@ -14,40 +15,20 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	final double INACTIVE_STATE = 0.0;
 
 	Random random;
-	Layer visible, hidden;
 	Matrix weights;
 
 	public RestrictedBoltzmannMachine(int numVisible, int numHidden) {
 		random = new Random();
-		visible = new LinearLayer(numVisible);
-		hidden = new SigmoidLayer(numHidden);
 		weights = Matrix.random(numVisible, numHidden);
 	}
 
 	public RestrictedBoltzmannMachine(int numVisible, int numHidden, String layerType) {
-		visible = new LinearLayer(numVisible);
-		switch(layerType) {
-			case "sigmoid":
-				hidden = new SigmoidLayer(numHidden);
-				break;
-			case "tanh":
-				hidden = new TanhLayer(numHidden);
-				break;
-			case "softplus":
-				hidden = new SoftplusLayer(numHidden);
-				break;
-			case "linear":
-				hidden = new LinearLayer(numHidden); // Why would you do this?
-				break;
-		}
 		weights = Matrix.random(numVisible, numHidden);
 	}
 
 	@Override
 	public Matrix predict(Matrix input) {
-		visible.setActivities(input);
-		hidden.setActivities(visible.getActivations().multiply(weights));
-		return hidden.getActivations().elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
+		return input.multiply(weights).elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
 	}
 
 	@Override
@@ -56,23 +37,22 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	}
 
 	private Matrix reconstruct(Matrix output, boolean stochastic) {
-		hidden.setActivations(output);
-		visible.setActivities(hidden.getActivations().multiply(weights.transpose()));
+		Matrix result = output.multiply(weights.transpose());
 		if(stochastic) {
-			return visible.getActivations().elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
+			return result.elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
 		} else {
-			return visible.getActivities();
+			return result;
 		}
 	}
 
 	@Override
 	public int getNumInputs() {
-		return visible.getSize();
+		return weights.numColumns();
 	}
 
 	@Override
 	public int getNumOutputs() {
-		return hidden.getSize();
+		return weights.numRows();
 	}
 
 	@Override
@@ -82,23 +62,12 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 
 	@Override
 	public Layer getLayer(int i) {
-		if(i == 0) {
-			return visible;
-		} else if(i == 1) {
-			return hidden;
-		}
 		throw new ArrayIndexOutOfBoundsException(i);
 	}
 
 	@Override
 	public void setLayer(int i, Layer layer) {
-		if(i == 0) {
-			visible = layer;
-		} else if(i == 1) {
-			hidden = layer;
-		} else {
-			throw new ArrayIndexOutOfBoundsException(i);
-		}
+		throw new ArrayIndexOutOfBoundsException(i);
 	}
 
 	@Override
@@ -114,19 +83,19 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	// Non-standard methods.
 
 	public Layer getVisible() {
-		return visible;
+		return null;
 	}
 
 	public Layer getHidden() {
-		return hidden;
+		return null;
 	}
 
 	public Matrix daydream(int numSamples, int numCycles) {
 		// Do numCycles gibbs samples to produce numSample sampels.
-		Matrix output = Matrix.random(numSamples, visible.getSize());
+		Matrix input = Matrix.random(numSamples, getNumInputs());
 		for(int i=0; i < numCycles; i++) {
-			output = reconstruct(predict(output), false);
+			input = predict(reconstruct(input, false));
 		}
-		return output;
+		return reconstruct(input, true);
 	}
 }

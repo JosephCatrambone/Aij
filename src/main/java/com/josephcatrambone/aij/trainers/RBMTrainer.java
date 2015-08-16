@@ -29,37 +29,36 @@ public class RBMTrainer implements Trainer {
 
 	public void train(Network net, Matrix inputs, Matrix labels, Runnable notification) {
 		RestrictedBoltzmannMachine rbm = (RestrictedBoltzmannMachine)net; // We only train neural networks.
+		final Matrix weights = rbm.getWeights(0);
 		int[] sampleIndices = new int[batchSize];
 
 		for(int i=0; i < maxIterations && lastError > earlyStopError; i++) {
 			// Randomly sample input matrix and examples.
 			Arrays.parallelSetAll(sampleIndices, x -> random.nextInt(inputs.numRows()));
 
-			Matrix x = inputs.getRows(sampleIndices);
+			final Matrix x = inputs.getRows(sampleIndices);
 
-			rbm.predict(x);
 			// Positive CD phase.
-			//Matrix positive_hidden_activations = rbm.getHidden().getActivities();
-			Matrix positive_hidden_probabilities = rbm.getHidden().getActivations().clone();
-			Matrix positive_hidden_states = positive_hidden_probabilities.elementOp(v -> v > random.nextDouble() ? 1.0 : 0.0);
-			Matrix positive_product = x.transpose().multiply(positive_hidden_probabilities); // pos_associations = np.dot(data.T, pos_hidden_probs)
+			final Matrix positive_hidden_activations = x.multiply(weights);
+			final Matrix positive_hidden_probabilities = positive_hidden_activations.sigmoid();
+			final Matrix positive_hidden_states = positive_hidden_probabilities.elementOp(v -> v > random.nextDouble() ? 1.0 : 0.0);
+
+			final Matrix positive_product = x.transpose().multiply(positive_hidden_probabilities); // pos_associations = np.dot(data.T, pos_hidden_probs)
 
 			// Negative CD phase.
 			// Reconstruct the visible units and sample again from the hidden units.
-			rbm.reconstruct(positive_hidden_states);
-			Matrix negative_visible_activities = rbm.getVisible().getActivities().clone(); //neg_visible_activations = np.dot(pos_hidden_states, self.weights.T)
-			Matrix negative_visible_probabilities = rbm.getVisible().getActivations().clone();//neg_visible_probs = self._logistic(neg_visible_activations)
-			rbm.predict(negative_visible_probabilities);
-			//Matrix negative_hidden_activations = rbm.getHidden().getActivities();//neg_hidden_activations = np.dot(neg_visible_probs, self.weights)
-			Matrix negative_hidden_probabilities = rbm.getHidden().getActivations().clone();//neg_hidden_probs = self._logistic(neg_hidden_activations)
-			//# Note, again, that we're using the activation *probabilities* when computing associations, not the states themselves.
-			Matrix negative_product = negative_visible_probabilities.transpose().multiply(negative_hidden_probabilities);//neg_associations = np.dot(neg_visible_probs.T, neg_hidden_probs)
+			final Matrix negative_visible_activities = positive_hidden_states.multiply(weights.transpose()); //neg_visible_activations = np.dot(pos_hidden_states, self.weights.T)
+			final Matrix negative_visible_probabilities = negative_visible_activities.sigmoid(); //neg_visible_probs = self._logistic(neg_visible_activations)
+			final Matrix negative_hidden_activities = negative_visible_probabilities.multiply(weights); //neg_hidden_probs = self._logistic(neg_hidden_activations)
+			final Matrix negative_hidden_probabilities = negative_hidden_activities.sigmoid();
+
+			final Matrix negative_product = negative_visible_probabilities.transpose().multiply(negative_hidden_probabilities);//neg_associations = np.dot(neg_visible_probs.T, neg_hidden_probs)
 
 			// Update weights.
-			rbm.setWeights(0, rbm.getWeights(0).add(positive_product.subtract(negative_product).elementMultiply_i(learningRate/(float)batchSize)));
+			weights.add(positive_product.subtract(negative_product).elementMultiply_i(learningRate/(float)batchSize));
 			// TODO: Recheck these bias updates.  I think they're wrong.
-			rbm.getVisible().setBias(rbm.getVisible().getBias().add(x.subtract(negative_visible_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
-			rbm.getHidden().setBias(rbm.getHidden().getBias().add(positive_hidden_probabilities.subtract(negative_hidden_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
+			//rbm.getVisible().setBias(rbm.getVisible().getBias().add(x.subtract(negative_visible_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
+			//rbm.getHidden().setBias(rbm.getHidden().getBias().add(positive_hidden_probabilities.subtract(negative_hidden_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
 			lastError = x.subtract(negative_visible_probabilities).elementOp_i(v -> v*v).sum();
 
 			if(notification != null && notificationIncrement > 0 && (i+1)%notificationIncrement == 0) {
@@ -67,5 +66,6 @@ public class RBMTrainer implements Trainer {
 			}
 		}
 
+		rbm.setWeights(0, weights);
 	}
 }
