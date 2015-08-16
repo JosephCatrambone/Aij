@@ -23,6 +23,23 @@ public class MatrixTest {
 	}
 
 	@Test
+	public void testSigmoid() {
+		double[] values = new double[]{-10, -5, -2, -1, -0.75, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 0.75, 1, 2, 5, 10};
+		Matrix m = new Matrix(new double[][] {values});
+		Matrix m2 = m.sigmoid();
+		// Make sure original isn't changed.
+		assertArrayEquals(values, m.getRowArray(0), 1.0e-10);
+		// Make sure sigmoid computed correctly.
+		assertArrayEquals(new double[]{
+			4.53978687e-05,   6.69285092e-03,   1.19202922e-01,
+			2.68941421e-01,   3.20821301e-01,   3.77540669e-01,
+			4.37823499e-01,   4.75020813e-01,   5.00000000e-01,
+			5.24979187e-01,   5.62176501e-01,   6.22459331e-01,
+			6.79178699e-01,   7.31058579e-01,   8.80797078e-01,
+			9.93307149e-01,   9.99954602e-01}, m2.getRowArray(0), 1.0e-4);
+	}
+
+	@Test
 	public void testReshape() {
 		Matrix m = new Matrix(3, 5);
 		assertEquals(m.numRows(), 3);
