@@ -47,12 +47,12 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 
 	@Override
 	public int getNumInputs() {
-		return weights.numColumns();
+		return weights.numRows();
 	}
 
 	@Override
 	public int getNumOutputs() {
-		return weights.numRows();
+		return weights.numColumns();
 	}
 
 	@Override
@@ -94,8 +94,8 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 		// Do numCycles gibbs samples to produce numSample sampels.
 		Matrix input = Matrix.random(numSamples, getNumInputs());
 		for(int i=0; i < numCycles; i++) {
-			input = predict(reconstruct(input, false));
+			input = reconstruct(predict(input), false);
 		}
-		return reconstruct(input, true);
+		return input;
 	}
 }
