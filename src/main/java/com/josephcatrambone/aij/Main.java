@@ -36,7 +36,7 @@ public class Main extends Application {
 
 	@Override
 	public void start(Stage stage) {
-		imageDemo(stage);
+		shapeDemo(stage);
 	}
 
 	public void imageDemo(Stage stage) {
@@ -239,38 +239,6 @@ public class Main extends Application {
 		//System.exit(0);
 	}
 
-	public void threeParityDemo(Stage stage) {
-		// Purely console demo.
-
-		// Set up training.
-		RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(6, 5);
-		Matrix x = new Matrix(3, 6, 0.0);
-		x.setRow(0, new double[]{1,1,0,0,0,0});
-		x.setRow(1, new double[]{0,0,1,1,0,0});
-		x.setRow(2, new double[]{0, 0, 0, 0, 1, 1});
-
-		RBMTrainer trainer = new RBMTrainer();
-		trainer.learningRate = 0.1;
-		trainer.batchSize = 10;
-		trainer.notificationIncrement = 100;
-		trainer.maxIterations = 100000000;
-
-		Runnable updateFunction = new Runnable() {
-			int i=0;
-
-			@Override
-			public void run() {
-				Matrix daydream = rbm.daydream(1, 2); // One sample, two gibbs cycle
-				System.out.println(i + ":" + trainer.lastError + " - " + daydream);
-				Thread.yield();
-				i++;
-			}
-		};
-
-		// Run
-		trainer.train(rbm, x, null, updateFunction);
-	}
-
 	public void shapeDemo(Stage stage) {
 		// Build UI
 		stage.setTitle("Aij Test UI");
@@ -284,7 +252,7 @@ public class Main extends Application {
 
 		// Build data
 		Random random = new Random();
-		final int NUM_EXAMPLES = 100;
+		final int NUM_EXAMPLES = 1000;
 		final int IMAGE_WIDTH = 16;
 		final int IMAGE_HEIGHT = 16;
 		final int MIN_RECT_SIZE = 4;
@@ -292,9 +260,9 @@ public class Main extends Application {
 		for(int i=0; i < NUM_EXAMPLES; i++) {
 			// Draw a square
 			Matrix example = Matrix.zeros(IMAGE_WIDTH, IMAGE_HEIGHT);
-			int xStart = random.nextInt(IMAGE_WIDTH-MIN_RECT_SIZE-1);
+			int xStart = 1+random.nextInt(IMAGE_WIDTH-MIN_RECT_SIZE-1);
 			int width = random.nextInt(IMAGE_WIDTH-xStart);
-			int yStart = random.nextInt(IMAGE_HEIGHT-MIN_RECT_SIZE);
+			int yStart = 1+random.nextInt(IMAGE_HEIGHT-MIN_RECT_SIZE-1);
 			int height = random.nextInt(IMAGE_HEIGHT-yStart);
 			for(int j=0; j < width; j++) {
 				example.set(yStart, j, 1.0);
@@ -384,6 +352,10 @@ public class Main extends Application {
 			}
 		}));
 		timeline.playFromStart();
+
+		stage.setOnCloseRequest((WindowEvent w) -> {
+			timeline.stop();
+		});
 	}
 
 	public void sinDemo(Stage stage) {
