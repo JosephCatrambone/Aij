@@ -5,6 +5,7 @@ import com.josephcatrambone.aij.trainers.BackpropTrainer;
 import com.josephcatrambone.aij.trainers.ConvolutionalTrainer;
 import com.josephcatrambone.aij.trainers.MeanFilterTrainer;
 import com.josephcatrambone.aij.trainers.RBMTrainer;
+import com.josephcatrambone.aij.utilities.ImageTools;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
@@ -36,7 +37,7 @@ public class Main extends Application {
 
 	@Override
 	public void start(Stage stage) {
-		shapeDemo(stage);
+		imageDemo(stage);
 	}
 
 	public void imageDemo(Stage stage) {
@@ -59,10 +60,7 @@ public class Main extends Application {
 			// Load training data
 			// Build data
 			for(int i=0; i < NUM_EXAMPLES; i++) {
-				// Read image dat
-				Image img = new Image("file:" + scanner.nextLine(), IMG_WIDTH, IMG_HEIGHT, true, true, false);
-
-				examples.setRow(i, imageToMatrix(img, IMG_WIDTH, IMG_HEIGHT).reshape_i(1, IMG_WIDTH*IMG_HEIGHT));
+				examples.setRow(i, ImageTools.ImageFileToMatrix(scanner.next(), IMG_WIDTH, IMG_HEIGHT).reshape_i(1, IMG_WIDTH*IMG_HEIGHT));
 			}
 		} catch(FileNotFoundException fnfe) {
 			System.err.println("Unable to load image: " + fnfe);
@@ -74,16 +72,8 @@ public class Main extends Application {
 		// DEBUG
 
 		Consumer <Matrix> trainingDataMonitor = (Matrix m) -> {
-			WritableImage visualized = new WritableImage(RBM_WIDTH, RBM_HEIGHT);
-			PixelWriter pw = visualized.getPixelWriter();
-			for(int iy=0; iy < RBM_HEIGHT; iy++) {
-				for(int ix=0; ix < RBM_WIDTH; ix++) {
-					pw.setColor(ix, iy, Color.gray(m.get(0, ix + iy*RBM_WIDTH)));
-				}
-			}
-			try {
-				ImageIO.write(SwingFXUtils.fromFXImage(visualized, null), "png", new File("output.png"));
-			} catch(IOException ioe) {}
+			Image visualized = ImageTools.MatrixToFXImage(m.reshape_i(RBM_WIDTH, RBM_HEIGHT));
+			ImageTools.FXImageToDisk(visualized, "output.png");
 		};
 
 		// DEBUG
@@ -282,9 +272,9 @@ public class Main extends Application {
 		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(IMAGE_WIDTH*IMAGE_HEIGHT, 16);
 		RBMTrainer trainer = new RBMTrainer();
 		trainer.batchSize = 10;
-		trainer.learningRate = 0.01;
-		trainer.notificationIncrement = 10;
-		trainer.maxIterations = 11;
+		trainer.learningRate = 0.1;
+		trainer.notificationIncrement = 2000;
+		trainer.maxIterations = 2001;
 
 		Runnable updateFunction = new Runnable() {
 			int iteration=0;
@@ -343,12 +333,12 @@ public class Main extends Application {
 			@Override
 			public void handle(ActionEvent event) {
 				trainer.train(rbm, x, y, updateFunction);
-				try {
-					Image visualized = visualizeRBM(rbm, false);
-					ImageIO.write(SwingFXUtils.fromFXImage(visualized, null), "png", new File("output.png"));
-				} catch(IOException ioe) {
-					System.out.println("Problem writing output.png");
-				}
+				//try {
+				Image visualized = visualizeRBM(rbm, false);
+				//	ImageIO.write(SwingFXUtils.fromFXImage(visualized, null), "png", new File("output.png"));
+				//} catch(IOException ioe) {
+				//	System.out.println("Problem writing output.png");
+				//}
 			}
 		}));
 		timeline.playFromStart();
@@ -421,31 +411,7 @@ public class Main extends Application {
 		timeline.playFromStart();
 	}
 
-	public Matrix imageToMatrix(Image image, int width, int height) {
-		// Return a matrix with the given dimensions, image scaled to the appropriate size.
-		// If the aspect ratio of the image is different, fill with black around the edges.
-		ImageView imageView = new ImageView();
-		imageView.setImage(image);
-		imageView.setFitWidth(width);
-		imageView.setFitHeight(height);
-		imageView.setPreserveRatio(true);
-		imageView.setSmooth(true);
 
-		WritableImage scaledImage = new WritableImage(width, height);
-
-		SnapshotParameters parameters = new SnapshotParameters();
-		parameters.setFill(Color.TRANSPARENT);
-		imageView.snapshot(parameters, scaledImage);
-
-		PixelReader img = scaledImage.getPixelReader();
-		Matrix output = new Matrix(height, width);
-		for(int y=0; y < height; y++) {
-			for(int x=0; x < width; x++) {
-				output.set(y, x, img.getColor(x, y).getBrightness());
-			}
-		}
-		return output;
-	}
 
 	/*** visualizeRBM
 	 * Given an RBM as input, return an image which shows the sensitivity of each pathway.
