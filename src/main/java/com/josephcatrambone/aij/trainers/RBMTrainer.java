@@ -39,23 +39,23 @@ public class RBMTrainer implements Trainer {
 			final Matrix x = inputs.getRows(sampleIndices);
 
 			// Positive CD phase.
-			final Matrix positiveHiddenActivations = x.multiply(weights).clone();
+			final Matrix positiveHiddenActivations = x.multiply(weights);
 			final Matrix positiveHiddenProbabilities = positiveHiddenActivations.sigmoid();
 			final Matrix positiveHiddenStates = positiveHiddenProbabilities.elementOp(v -> v > random.nextDouble() ? 1.0 : 0.0);
 
-			final Matrix positiveProduct = x.transpose().multiply(positiveHiddenProbabilities.clone());
+			final Matrix positiveProduct = x.transpose().multiply(positiveHiddenProbabilities);
 
 			// Negative CD phase.
 			// Reconstruct the visible units and sample again from the hidden units.
-			final Matrix negativeVisibleActivities = positiveHiddenStates.clone().multiply(weights.transpose());
+			final Matrix negativeVisibleActivities = positiveHiddenStates.multiply(weights.transpose());
 			final Matrix negativeVisibleProbabilities = negativeVisibleActivities.sigmoid();
-			final Matrix negativeHiddenActivities = negativeVisibleProbabilities.clone().multiply(weights);
+			final Matrix negativeHiddenActivities = negativeVisibleProbabilities.multiply(weights);
 			final Matrix negativeHiddenProbabilities = negativeHiddenActivities.sigmoid();
 
-			final Matrix negativeProduct = negativeVisibleProbabilities.transpose().multiply(negativeHiddenProbabilities.clone());
+			final Matrix negativeProduct = negativeVisibleProbabilities.transpose().multiply(negativeHiddenProbabilities);
 
 			// Update weights.
-			weights.add(positiveProduct.subtract(negativeProduct).elementMultiply(learningRate / (float) batchSize));
+			weights.add_i(positiveProduct.subtract(negativeProduct).elementMultiply(learningRate / (float) batchSize));
 			// TODO: Recheck these bias updates.  I think they're wrong.
 			//rbm.getVisible().setBias(rbm.getVisible().getBias().add(x.subtract(negative_visible_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
 			//rbm.getHidden().setBias(rbm.getHidden().getBias().add(positive_hidden_probabilities.subtract(negative_hidden_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
