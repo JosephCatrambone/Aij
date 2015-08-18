@@ -6,6 +6,7 @@ import com.josephcatrambone.aij.trainers.ConvolutionalTrainer;
 import com.josephcatrambone.aij.trainers.MeanFilterTrainer;
 import com.josephcatrambone.aij.trainers.RBMTrainer;
 import com.josephcatrambone.aij.utilities.ImageTools;
+import com.josephcatrambone.aij.utilities.NetworkIOTools;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
@@ -26,15 +27,93 @@ import java.io.*;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 public class Main extends Application {
+	private static final Logger LOGGER = Logger.getLogger(Main.class.getName());
 	public final int WIDTH = 800;
 	public final int HEIGHT = 600;
 
 	@Override
 	public void start(Stage stage) {
-		mnistDemo(stage);
+		pokemonDemo(stage);
+	}
+
+	public void pokemonDemo(Stage stage) {
+		LOGGER.info("Training pokemon RBM.");
+
+		// Load training data
+		final String POKEMON_PATH = "D:\\Source\\pokemon\\main-sprites\\red-blue\\";
+		final String POKEMON_MEAN = "pokemon_mean.net";
+		final String POKEMON_RBM = "pokemon_rbm.net";
+		final int HIDDEN_SIZE = 16*16;
+		final int NUM_POKEMON = 151;
+		final int IMG_WIDTH = 40;
+		final int IMG_HEIGHT = 40;
+		Matrix data = Matrix.zeros(NUM_POKEMON, IMG_WIDTH*IMG_HEIGHT);
+
+		for(int i=0; i < NUM_POKEMON; i++) {
+			LOGGER.info("Loaded Pokemon " + i);
+			data.setRow(i, ImageTools.GreyMatrixToBitMatrix(ImageTools.ImageFileToMatrix(POKEMON_PATH + i + ".png", IMG_WIDTH, IMG_HEIGHT).reshape_i(1, IMG_WIDTH * IMG_HEIGHT)));
+		}
+
+		// Make mean filter
+		MeanFilterNetwork mfn = new MeanFilterNetwork(IMG_WIDTH*IMG_HEIGHT);
+		MeanFilterTrainer mft = new MeanFilterTrainer();
+		mft.train(mfn, data, null, null);
+		Matrix examples = mfn.predict(data);
+
+		// Build RBM for learning
+		RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT, HIDDEN_SIZE);
+		RBMTrainer rbmTrainer = new RBMTrainer();
+		rbmTrainer.batchSize = 1; // 5x20
+		rbmTrainer.learningRate = 0.1;
+		rbmTrainer.notificationIncrement = 1000;
+		rbmTrainer.maxIterations = 10000;
+		rbmTrainer.earlyStopError = 0.0001;
+		rbmTrainer.train(rbm, examples, null, new Runnable() {
+			int i=0;
+			@Override
+			public void run() {
+				LOGGER.info("Iteration " + (i*rbmTrainer.notificationIncrement) + " error: " + rbmTrainer.lastError);
+				i++;
+			}
+		});
+
+		// Set up UI
+		stage.setTitle("Aij Test UI");
+		GridPane pane = new GridPane();
+		pane.setAlignment(Pos.CENTER);
+		Scene scene = new Scene(pane, WIDTH, HEIGHT);
+		ImageView imageView = new ImageView(visualizeRBM(rbm, null, false));
+		pane.getChildren().add(imageView);
+		//pane.add(imageView);
+		stage.setScene(scene);
+		stage.show();
+
+		// Save
+		NetworkIOTools.SaveNetworkToDisk(mfn, POKEMON_MEAN);
+		NetworkIOTools.SaveNetworkToDisk(rbm, POKEMON_RBM);
+
+		// Repeated draw.
+		Timeline timeline = new Timeline();
+		timeline.setCycleCount(Timeline.INDEFINITE);
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.3), new EventHandler<ActionEvent>() {
+			@Override
+			public void handle(ActionEvent event) {
+				//rbmTrainer.train(edgeDetector, data, null, null);
+				Image img = ImageTools.MatrixToFXImage(ImageTools.BitMatrixToGrayMatrix(rbm.daydream(1, 10), 0.9));
+				imageView.setImage(img);
+				System.out.println("Image drawn.  Looping.");
+			}
+		}));
+		timeline.playFromStart();
+
+		stage.setOnCloseRequest((WindowEvent w) -> {
+			timeline.stop();
+		});
 	}
 
 	public void imageDemo(Stage stage) {
@@ -158,7 +237,7 @@ public class Main extends Application {
 			try{
 				trainerThread.join(1000);
 			} catch(InterruptedException ie) {}
-			saveNetwork(edgeDetector, "rbm0_8x8_8x8.net");
+			NetworkIOTools.SaveNetworkToDisk(edgeDetector, "rbm0_8x8_8x8.net");
 		});
 	}
 
@@ -396,8 +475,6 @@ public class Main extends Application {
 		timeline.playFromStart();
 	}
 
-
-
 	/*** visualizeRBM
 	 * Given an RBM as input, return an image which shows the sensitivity of each pathway.
 	 * Attempts to produce a square image.
@@ -490,31 +567,6 @@ public class Main extends Application {
 			System.exit(-1);
 		}
 		return trainingData;
-	}
-
-	public boolean saveNetwork(Network n, String filename) {
-		try {
-			ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(new File(filename)));
-			oos.writeObject(n);
-			oos.close();
-		} catch(IOException ioe) {
-			return false;
-		}
-		return true;
-	}
-
-	public Network loadNetwork(String filename) {
-		Network net = null;
-		try {
-			ObjectInputStream ois = new ObjectInputStream(new FileInputStream(new File(filename)));
-			net = (Network)ois.readObject();
-			ois.close();
-		} catch(IOException ioe) {
-			return null;
-		} catch(ClassNotFoundException cnfe) {
-			return null;
-		}
-		return net;
 	}
 
 	public static void main(String[] args) {

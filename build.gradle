@@ -4,6 +4,7 @@ apply plugin: 'idea'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 version = '1.0'
+//mainClassName = 'com.josephcatrambone.aij.Main'
 
 repositories {
 	mavenCentral()
@@ -40,12 +41,12 @@ task(quickRun, dependsOn: 'classes', type: JavaExec) {
 	//systemProperty 'simple.message', 'Running with arg 1KSentences.txt'
 }
 
-test {
-	testLogging {
+//test {
+//	testLogging {
 		// Make sure output from
 		// standard out or error is shown
 		// in Gradle output.
-		showStandardStreams = true
+//		showStandardStreams = true
 
 		// Or we use events method:
 		// events 'standard_out', 'standard_error'
@@ -56,8 +57,8 @@ test {
 		// use enum values:
 		// events org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT,
 		// org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR,
-	}
-}
+//	}
+//}
 
 idea {
 	module {
