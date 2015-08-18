@@ -12,10 +12,10 @@ public class MeanFilterNetwork extends FunctionNetwork {
 	public MeanFilterNetwork(int inputSize) {
 		super(inputSize, inputSize);
 		this.predictionFunction = (Matrix m) -> {
-			return m.subtract(mean);
+			return m.subtract(mean.repmat(m.numRows(), 1));
 		};
 		this.reconstructionFunction = (Matrix m) -> {
-			return m.add(mean);
+			return m.add(mean.repmat(m.numRows(), 1));
 		};
 	}
 }

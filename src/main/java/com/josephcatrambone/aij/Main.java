@@ -9,12 +9,10 @@ import com.josephcatrambone.aij.utilities.ImageTools;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.*;
@@ -24,7 +22,6 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 
-import javax.imageio.ImageIO;
 import java.io.*;
 import java.util.Random;
 import java.util.Scanner;
@@ -37,7 +34,7 @@ public class Main extends Application {
 
 	@Override
 	public void start(Stage stage) {
-		imageDemo(stage);
+		mnistDemo(stage);
 	}
 
 	public void imageDemo(Stage stage) {
@@ -60,7 +57,7 @@ public class Main extends Application {
 			// Load training data
 			// Build data
 			for(int i=0; i < NUM_EXAMPLES; i++) {
-				examples.setRow(i, ImageTools.ImageFileToMatrix(scanner.next(), IMG_WIDTH, IMG_HEIGHT).reshape_i(1, IMG_WIDTH*IMG_HEIGHT));
+				examples.setRow(i, ImageTools.ImageFileToMatrix(scanner.next(), IMG_WIDTH, IMG_HEIGHT).reshape_i(1, IMG_WIDTH * IMG_HEIGHT));
 			}
 		} catch(FileNotFoundException fnfe) {
 			System.err.println("Unable to load image: " + fnfe);
@@ -81,25 +78,11 @@ public class Main extends Application {
 		// Build network
 
 		// Train the mean filter on the input
-		MeanFilterNetwork meanFilter = new MeanFilterNetwork(RBM_WIDTH*RBM_HEIGHT);
-		MeanFilterTrainer meanFilterTrainer = new MeanFilterTrainer();
-
-		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(meanFilter, IMG_WIDTH, IMG_HEIGHT, RBM_WIDTH, RBM_HEIGHT, RBM_WIDTH, RBM_HEIGHT, RBM_WIDTH, RBM_HEIGHT, ConvolutionalNetwork.EdgeBehavior.ZEROS);
-		ConvolutionalTrainer layer0Trainer = new ConvolutionalTrainer();
-		layer0Trainer.operatorTrainer = meanFilterTrainer;
-		layer0Trainer.subwindowsPerExample = 10000;
-		layer0Trainer.examplesPerBatch = NUM_EXAMPLES;
-		layer0Trainer.maxIterations = 1;
-
-		layer0Trainer.train(layer0, examples, null, null);
-
-		Matrix normalizedExamples = layer0.predict(examples);
-
 		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(RBM_WIDTH*RBM_HEIGHT, OUT_WIDTH*OUT_HEIGHT);
 		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10;
-		rbmTrainer.learningRate = 0.01;
+		rbmTrainer.learningRate = 0.1;
 		rbmTrainer.maxIterations = 10;
 
 		//ConvolutionalNetwork layer1 = new ConvolutionalNetwork(edgeDetector, IMG_WIDTH, IMG_HEIGHT, RBM_WIDTH, RBM_HEIGHT, OUT_WIDTH, OUT_HEIGHT, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
@@ -115,7 +98,7 @@ public class Main extends Application {
 		GridPane pane = new GridPane();
 		pane.setAlignment(Pos.CENTER);
 		Scene scene = new Scene(pane, WIDTH, HEIGHT);
-		ImageView imageView = new ImageView(visualizeRBM(edgeDetector, false));
+		ImageView imageView = new ImageView(visualizeRBM(edgeDetector, null, false));
 		imageView.setFitWidth(DISPLAY_WIDTH);
 		imageView.setFitHeight(DISPLAY_HEIGHT);
 		pane.getChildren().add(imageView);
@@ -128,7 +111,7 @@ public class Main extends Application {
 				synchronized (layer1Trainer) {
 					if (!layer1Trainer.isTraining) {
 						System.out.println("Training...");
-						layer1Trainer.train(layer1, normalizedExamples, y, null);
+						layer1Trainer.train(layer1, examples, y, null);
 					}
 				}
 				// Stop if interrupted.
@@ -159,7 +142,7 @@ public class Main extends Application {
 					if (!layer1Trainer.isTraining) {
 						//rbmTrainer.train(edgeDetector, data, null, null);
 						System.out.println("Drawing.");
-						Image img = visualizeRBM(edgeDetector, true);
+						Image img = visualizeRBM(edgeDetector, null, true);
 						imageView.setImage(img);
 					} else {
 						System.out.println("Drawing deferred.  Training in progres...");
@@ -175,7 +158,6 @@ public class Main extends Application {
 			try{
 				trainerThread.join(1000);
 			} catch(InterruptedException ie) {}
-			saveNetwork(meanFilter, "meanFilter_8x8.net");
 			saveNetwork(edgeDetector, "rbm0_8x8_8x8.net");
 		});
 	}
@@ -184,26 +166,27 @@ public class Main extends Application {
 		// Load training data
 		Matrix data = loadMNIST("train-images-idx3-ubyte");
 
-		RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(5*5, 16*16);
-		//RestrictedBoltzmannMachine edgeDetector = new RestrictedBoltzmannMachine(28*28, 8*8);
+		// Build RBM for learning
+		RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
-		rbmTrainer.batchSize = 20; // 5x20
-		rbmTrainer.learningRate = 0.05;
-		rbmTrainer.maxIterations = 10;
+		rbmTrainer.batchSize = 1; // 5x20
+		rbmTrainer.learningRate = 0.1;
+		rbmTrainer.maxIterations = 1000;
 
-		ConvolutionalNetwork layer0 = new ConvolutionalNetwork(edgeDetector, 28, 28, 5, 5, 16, 16, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
-		ConvolutionalTrainer convTrainer = new ConvolutionalTrainer();
-		convTrainer.operatorTrainer = rbmTrainer;
-		convTrainer.subwindowsPerExample = 1000;
-		convTrainer.examplesPerBatch = 5;
-		convTrainer.maxIterations = 1;
+		// Make mean filter
+		MeanFilterNetwork mfn = new MeanFilterNetwork(28*28);
+		MeanFilterTrainer mft = new MeanFilterTrainer();
+		mft.train(mfn, data, null, null);
+
+		// Remove mean
+		Matrix examples = mfn.predict(data);
 
 		// Set up UI
 		stage.setTitle("Aij Test UI");
 		GridPane pane = new GridPane();
 		pane.setAlignment(Pos.CENTER);
 		Scene scene = new Scene(pane, WIDTH, HEIGHT);
-		ImageView imageView = new ImageView(visualizeRBM(edgeDetector, false));
+		ImageView imageView = new ImageView(visualizeRBM(rbm, null, false));
 		pane.getChildren().add(imageView);
 		//pane.add(imageView);
 		stage.setScene(scene);
@@ -212,21 +195,23 @@ public class Main extends Application {
 		// Repeated draw.
 		Timeline timeline = new Timeline();
 		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.2), new EventHandler<ActionEvent>() {
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.1), new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
 				System.out.println("Training...");
-				convTrainer.train(layer0, data, null, null);
+				rbmTrainer.train(rbm, examples, null, null);
 				//rbmTrainer.train(edgeDetector, data, null, null);
 				System.out.println("Trained.  Drawing...");
-				Image img = visualizeRBM(edgeDetector, false);
+				Image img = visualizeRBM(rbm, mfn, true);
 				imageView.setImage(img);
 				System.out.println(img.getWidth() + " x " + img.getHeight() + " image drawn.  Looping.");
 			}
 		}));
 		timeline.playFromStart();
 
-		//System.exit(0);
+		stage.setOnCloseRequest((WindowEvent w) -> {
+			timeline.stop();
+		});
 	}
 
 	public void shapeDemo(Stage stage) {
@@ -329,12 +314,12 @@ public class Main extends Application {
 
 		Timeline timeline = new Timeline();
 		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.2), new EventHandler<ActionEvent>() {
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.5), new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
 				trainer.train(rbm, x, y, updateFunction);
 				//try {
-				Image visualized = visualizeRBM(rbm, false);
+				Image visualized = visualizeRBM(rbm, null, false);
 				//	ImageIO.write(SwingFXUtils.fromFXImage(visualized, null), "png", new File("output.png"));
 				//} catch(IOException ioe) {
 				//	System.out.println("Problem writing output.png");
@@ -420,7 +405,7 @@ public class Main extends Application {
 	 * @param normalizeIntensity
 	 * @return
 	 */
-	public Image visualizeRBM(RestrictedBoltzmannMachine rbm, boolean normalizeIntensity) {
+	public Image visualizeRBM(RestrictedBoltzmannMachine rbm, MeanFilterNetwork mean, boolean normalizeIntensity) {
 		int outputNeurons = rbm.getNumOutputs();
 		int inputNeurons = rbm.getNumInputs();
 		int xSampleCount = (int)Math.ceil(Math.sqrt(outputNeurons));
@@ -436,7 +421,11 @@ public class Main extends Application {
 			// Set one item hot and reconstruct
 			Matrix stim = new Matrix(1, outputNeurons);
 			stim.set(0, i, 1.0);
-			Matrix reconstruction = rbm.reconstruct(stim);
+			Matrix reconstruction = rbm.reconstruct(stim, false);
+
+			if(mean != null) {
+				reconstruction = mean.reconstruct(reconstruction);
+			}
 
 			// Normalize data if needed
 			double low = 0;
@@ -465,7 +454,7 @@ public class Main extends Application {
 	}
 
 	public Matrix loadMNIST(final String filename) {
-		int numImages = -1;
+		int numImages = 10000;
 		int imgWidth = -1;
 		int imgHeight = -1;
 		Matrix trainingData = null;
@@ -474,7 +463,7 @@ public class Main extends Application {
 		try(FileInputStream fin = new FileInputStream(filename); DataInputStream din = new DataInputStream(fin)) {
 			din.readInt();
 			assert(din.readInt() == 2051);
-			numImages = din.readInt();
+			numImages = Math.min(din.readInt(), numImages);
 			imgHeight = din.readInt();
 			imgWidth = din.readInt();
 			System.out.println("numImages: " + numImages);

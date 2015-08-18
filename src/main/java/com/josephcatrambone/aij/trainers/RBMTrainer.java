@@ -34,7 +34,10 @@ public class RBMTrainer implements Trainer {
 
 		for(int i=0; i < maxIterations && lastError > earlyStopError; i++) {
 			// Randomly sample input matrix and examples.
-			Arrays.parallelSetAll(sampleIndices, x -> random.nextInt(inputs.numRows()));
+			//Arrays.parallelSetAll(sampleIndices, x -> random.nextInt(inputs.numRows()));
+			for(int j=0; j < batchSize; j++) {
+				sampleIndices[j] = random.nextInt(inputs.numRows());
+			}
 
 			final Matrix x = inputs.getRows(sampleIndices);
 
