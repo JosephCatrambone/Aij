@@ -36,7 +36,7 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 		return reconstruct(output, true);
 	}
 
-	private Matrix reconstruct(Matrix output, boolean stochastic) {
+	public Matrix reconstruct(Matrix output, boolean stochastic) {
 		Matrix result = output.multiply(weights.transpose());
 		if(stochastic) {
 			return result.elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
