@@ -53,14 +53,14 @@ public class ImageTools {
 	 * @param matrix
 	 * @return
 	 */
-	public static Matrix GreyMatrixToBitMatrix(Matrix matrix) {
-		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns()*8);
+	public static Matrix GreyMatrixToBitMatrix(Matrix matrix, int bitsPerPixel) {
+		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns()*bitsPerPixel);
 		for(int row=0; row < matrix.numRows(); row++) {
 			for(int column=0; column < matrix.numColumns(); column++) {
-				int value = (int)(255*matrix.get(row, column));
-				for(int bit=0; bit < 8; bit++) {
+				int value = (int)(Math.pow(2, bitsPerPixel)*matrix.get(row, column));
+				for(int bit=0; bit < bitsPerPixel; bit++) {
 					if((value & 0x1) != 0) {
-						output.set(row, column*8 + bit, 1.0);
+						output.set(row, column*bitsPerPixel + bit, 1.0);
 					}
 					value = value >> 1;
 				}
@@ -75,17 +75,17 @@ public class ImageTools {
 	 * @param threshold The value for a bit to be considered 'high'.  Usually 0.99 is good.
 	 * @return
 	 */
-	public static Matrix BitMatrixToGrayMatrix(Matrix matrix, double threshold) {
+	public static Matrix BitMatrixToGrayMatrix(Matrix matrix, double threshold, int bitsPerPixel) {
 		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns()/8);
 		for(int row=0; row < matrix.numRows(); row++) {
-			for(int column=0; column < matrix.numColumns()/8; column++) {
+			for(int column=0; column < matrix.numColumns()/bitsPerPixel; column++) {
 				double accumulator = 0;
-				for(int bit=0; bit < 8; bit++) {
-					if(matrix.get(row, column*8 + bit) > threshold) {
+				for(int bit=0; bit < bitsPerPixel; bit++) {
+					if(matrix.get(row, column*bitsPerPixel + bit) > threshold) {
 						accumulator += Math.pow(2,bit);
 					}
 				}
-				output.set(row, column, accumulator/255.0);
+				output.set(row, column, accumulator/Math.pow(2, bitsPerPixel));
 			}
 		}
 		return output;

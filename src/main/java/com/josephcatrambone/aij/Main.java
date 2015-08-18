@@ -48,39 +48,42 @@ public class Main extends Application {
 		final String POKEMON_PATH = "D:\\Source\\pokemon\\main-sprites\\red-blue\\";
 		final String POKEMON_MEAN = "pokemon_mean.net";
 		final String POKEMON_RBM = "pokemon_rbm.net";
+		final int BPP = 8;
 		final int HIDDEN_SIZE = 16*16;
 		final int NUM_POKEMON = 151;
 		final int IMG_WIDTH = 40;
 		final int IMG_HEIGHT = 40;
-		Matrix data = Matrix.zeros(NUM_POKEMON, IMG_WIDTH*IMG_HEIGHT);
+		Matrix data = Matrix.zeros(NUM_POKEMON, IMG_WIDTH*IMG_HEIGHT*BPP);
+		Network temp; // Used to load because the others have to be final.
+		final RestrictedBoltzmannMachine rbm;
 
 		for(int i=0; i < NUM_POKEMON; i++) {
 			LOGGER.info("Loaded Pokemon " + i);
-			data.setRow(i, ImageTools.GreyMatrixToBitMatrix(ImageTools.ImageFileToMatrix(POKEMON_PATH + i + ".png", IMG_WIDTH, IMG_HEIGHT).reshape_i(1, IMG_WIDTH * IMG_HEIGHT)));
+			data.setRow(i, ImageTools.GreyMatrixToBitMatrix(ImageTools.ImageFileToMatrix(POKEMON_PATH + i + ".png", IMG_WIDTH, IMG_HEIGHT), BPP).reshape_i(1, IMG_WIDTH*IMG_HEIGHT*BPP));
 		}
-
-		// Make mean filter
-		MeanFilterNetwork mfn = new MeanFilterNetwork(IMG_WIDTH*IMG_HEIGHT);
-		MeanFilterTrainer mft = new MeanFilterTrainer();
-		mft.train(mfn, data, null, null);
-		Matrix examples = mfn.predict(data);
+		Matrix examples = data;
 
 		// Build RBM for learning
-		RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT, HIDDEN_SIZE);
-		RBMTrainer rbmTrainer = new RBMTrainer();
-		rbmTrainer.batchSize = 1; // 5x20
-		rbmTrainer.learningRate = 0.1;
-		rbmTrainer.notificationIncrement = 1000;
-		rbmTrainer.maxIterations = 10000;
-		rbmTrainer.earlyStopError = 0.0001;
-		rbmTrainer.train(rbm, examples, null, new Runnable() {
-			int i=0;
-			@Override
-			public void run() {
-				LOGGER.info("Iteration " + (i*rbmTrainer.notificationIncrement) + " error: " + rbmTrainer.lastError);
-				i++;
-			}
-		});
+		temp = NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
+		if(temp == null) {
+			rbm = (RestrictedBoltzmannMachine)temp;
+		} else {
+			rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT*BPP, HIDDEN_SIZE);
+			RBMTrainer rbmTrainer = new RBMTrainer();
+			rbmTrainer.batchSize = 1; // 5x20
+			rbmTrainer.learningRate = 0.1;
+			rbmTrainer.notificationIncrement = 100;
+			rbmTrainer.maxIterations = 10000;
+			rbmTrainer.earlyStopError = 0.001;
+			rbmTrainer.train(rbm, examples, null, new Runnable() {
+				int i = 0;
+				@Override
+				public void run() {
+					LOGGER.info("Iteration " + (i * rbmTrainer.notificationIncrement) + " error: " + rbmTrainer.lastError);
+					i++;
+				}
+			});
+		}
 
 		// Set up UI
 		stage.setTitle("Aij Test UI");
@@ -94,19 +97,22 @@ public class Main extends Application {
 		stage.show();
 
 		// Save
-		NetworkIOTools.SaveNetworkToDisk(mfn, POKEMON_MEAN);
 		NetworkIOTools.SaveNetworkToDisk(rbm, POKEMON_RBM);
 
 		// Repeated draw.
 		Timeline timeline = new Timeline();
 		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.3), new EventHandler<ActionEvent>() {
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
 				//rbmTrainer.train(edgeDetector, data, null, null);
-				Image img = ImageTools.MatrixToFXImage(ImageTools.BitMatrixToGrayMatrix(rbm.daydream(1, 10), 0.9));
+				final Matrix daydream = rbm.daydream(1, 10);
+				final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(daydream, 0.5, BPP);
+				final Matrix reshaped = greyImage.reshape_i(IMG_WIDTH, IMG_HEIGHT);
+				Image img = ImageTools.MatrixToFXImage(reshaped);
 				imageView.setImage(img);
 				System.out.println("Image drawn.  Looping.");
+				Thread.yield();
 			}
 		}));
 		timeline.playFromStart();
