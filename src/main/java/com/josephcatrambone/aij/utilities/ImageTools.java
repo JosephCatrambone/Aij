@@ -76,7 +76,7 @@ public class ImageTools {
 	 * @return
 	 */
 	public static Matrix BitMatrixToGrayMatrix(Matrix matrix, double threshold, int bitsPerPixel) {
-		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns()/8);
+		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns()/bitsPerPixel);
 		for(int row=0; row < matrix.numRows(); row++) {
 			for(int column=0; column < matrix.numColumns()/bitsPerPixel; column++) {
 				double accumulator = 0;

@@ -48,7 +48,7 @@ public class Main extends Application {
 		final String POKEMON_PATH = "D:\\Source\\pokemon\\main-sprites\\red-blue\\";
 		final String POKEMON_MEAN = "pokemon_mean.net";
 		final String POKEMON_RBM = "pokemon_rbm.net";
-		final int BPP = 8;
+		final int BPP = 4;
 		final int HIDDEN_SIZE = 16*16;
 		final int NUM_POKEMON = 151;
 		final int IMG_WIDTH = 40;
@@ -70,11 +70,11 @@ public class Main extends Application {
 		} else {
 			rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT*BPP, HIDDEN_SIZE);
 			RBMTrainer rbmTrainer = new RBMTrainer();
-			rbmTrainer.batchSize = 1; // 5x20
+			rbmTrainer.batchSize = 10; // 5x20
 			rbmTrainer.learningRate = 0.1;
 			rbmTrainer.notificationIncrement = 100;
-			rbmTrainer.maxIterations = 10000;
-			rbmTrainer.earlyStopError = 0.001;
+			rbmTrainer.maxIterations = 250;
+			rbmTrainer.earlyStopError = 10.0; // Normally 0.001
 			rbmTrainer.train(rbm, examples, null, new Runnable() {
 				int i = 0;
 				@Override
@@ -90,7 +90,7 @@ public class Main extends Application {
 		GridPane pane = new GridPane();
 		pane.setAlignment(Pos.CENTER);
 		Scene scene = new Scene(pane, WIDTH, HEIGHT);
-		ImageView imageView = new ImageView(visualizeRBM(rbm, null, false));
+		ImageView imageView = new ImageView();
 		pane.getChildren().add(imageView);
 		//pane.add(imageView);
 		stage.setScene(scene);
@@ -106,7 +106,7 @@ public class Main extends Application {
 			@Override
 			public void handle(ActionEvent event) {
 				//rbmTrainer.train(edgeDetector, data, null, null);
-				final Matrix daydream = rbm.daydream(1, 10);
+				final Matrix daydream = rbm.daydream(1, 1);
 				final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(daydream, 0.5, BPP);
 				final Matrix reshaped = greyImage.reshape_i(IMG_WIDTH, IMG_HEIGHT);
 				Image img = ImageTools.MatrixToFXImage(reshaped);

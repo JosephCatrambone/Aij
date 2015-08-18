@@ -10,6 +10,11 @@ import static org.junit.Assert.assertArrayEquals;
 public class ImageToolsTest {
 	@Test
 	public void testImageBitConversion() {
+		int bits = 16;
+		double totalError = 0;
+		Matrix bitMatrix;
+		Matrix m2;
+		Matrix diff;
 		Matrix m = new Matrix(new double[][] {
 				{0.0},
 				{0.1},
@@ -24,15 +29,20 @@ public class ImageToolsTest {
 				{1.0}
 		});
 
-		Matrix bitMatrix = ImageTools.GreyMatrixToBitMatrix(m);
-		Matrix m2 = ImageTools.BitMatrixToGrayMatrix(bitMatrix, 0.99);
+		for(Integer i : new int[]{4, 8, 16}) {
+			// 16 bits
+			bits = i;
+			bitMatrix = ImageTools.GreyMatrixToBitMatrix(m, bits);
+			m2 = ImageTools.BitMatrixToGrayMatrix(bitMatrix, 0.9, bits);
+			diff = m2.subtract(m);
+			totalError = diff.sum();
+			assertArrayEquals(bits + "-bit conversion diff " + diff + " error: " + totalError, m.getRowArray(0), m2.getRowArray(0), 1e-1);
+			assertArrayEquals(bits + "-bit conversion diff " + diff + " error: " + totalError, m.getRowArray(1), m2.getRowArray(1), 1e-1);
+		}
 
-		System.out.println(m);
-		System.out.println(m2);
+		//System.out.println(m);
+		//System.out.println(m2);
 
-		//System.out.println(m2.subtract(m));
 
-		assertArrayEquals("f^-1(f(x)) != x :", m.getRowArray(0), m2.getRowArray(0), 1e-1);
-		assertArrayEquals("f^-1(f(x)) != x :", m.getRowArray(1), m2.getRowArray(1), 1e-1);
 	}
 }
