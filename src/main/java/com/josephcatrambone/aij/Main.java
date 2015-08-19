@@ -11,13 +11,16 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.TextField;
 import javafx.scene.image.*;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -44,37 +47,43 @@ public class Main extends Application {
 	public void pokemonDemo(Stage stage) {
 		LOGGER.info("Training pokemon RBM.");
 
-		// Load training data
+		// Learning data and consts
 		final String POKEMON_PATH = "D:\\Source\\pokemon\\main-sprites\\red-blue\\";
-		final String POKEMON_MEAN = "pokemon_mean.net";
 		final String POKEMON_RBM = "pokemon_rbm.net";
 		final int BPP = 4;
-		final int HIDDEN_SIZE = 16*16;
+		final int HIDDEN_SIZE = 32*32;
 		final int NUM_POKEMON = 151;
 		final int IMG_WIDTH = 40;
 		final int IMG_HEIGHT = 40;
+		final int DAYDREAM_CYCLES = 10;
 		Matrix data = Matrix.zeros(NUM_POKEMON, IMG_WIDTH*IMG_HEIGHT*BPP);
 		Network temp; // Used to load because the others have to be final.
 		final RestrictedBoltzmannMachine rbm;
 
-		for(int i=0; i < NUM_POKEMON; i++) {
-			LOGGER.info("Loaded Pokemon " + i);
-			data.setRow(i, ImageTools.GreyMatrixToBitMatrix(ImageTools.ImageFileToMatrix(POKEMON_PATH + i + ".png", IMG_WIDTH, IMG_HEIGHT), BPP).reshape_i(1, IMG_WIDTH*IMG_HEIGHT*BPP));
-		}
-		Matrix examples = data;
-
-		// Build RBM for learning
+		// Load or build RBM for learning
 		temp = NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
-		if(temp == null) {
+		if(temp != null) {
+			// Load RBM
+			LOGGER.info("Loaded RBM from file." + POKEMON_RBM);
 			rbm = (RestrictedBoltzmannMachine)temp;
 		} else {
+			LOGGER.info("Training RBM on Pokemon from folder " + POKEMON_PATH);
+			// Load data
+			for(int i=0; i < NUM_POKEMON; i++) {
+				LOGGER.info("Loaded Pokemon " + i);
+				Matrix mat = ImageTools.GreyMatrixToBitMatrix(ImageTools.ImageFileToMatrix(POKEMON_PATH + i + ".png", IMG_WIDTH, IMG_HEIGHT), BPP);
+				data.setRow(i, mat.reshape_i(1, IMG_WIDTH * IMG_HEIGHT * BPP));
+			}
+			Matrix examples = data;
+
+			// Train RBM
 			rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT*BPP, HIDDEN_SIZE);
 			RBMTrainer rbmTrainer = new RBMTrainer();
-			rbmTrainer.batchSize = 10; // 5x20
+			rbmTrainer.batchSize = 10;
 			rbmTrainer.learningRate = 0.1;
-			rbmTrainer.notificationIncrement = 100;
-			rbmTrainer.maxIterations = 250;
-			rbmTrainer.earlyStopError = 10.0; // Normally 0.001
+			rbmTrainer.notificationIncrement = 1000;
+			rbmTrainer.maxIterations = 250001;
+			rbmTrainer.earlyStopError = 0.01;
 			rbmTrainer.train(rbm, examples, null, new Runnable() {
 				int i = 0;
 				@Override
@@ -85,41 +94,42 @@ public class Main extends Application {
 			});
 		}
 
-		// Set up UI
-		stage.setTitle("Aij Test UI");
-		GridPane pane = new GridPane();
-		pane.setAlignment(Pos.CENTER);
-		Scene scene = new Scene(pane, WIDTH, HEIGHT);
-		ImageView imageView = new ImageView();
-		pane.getChildren().add(imageView);
-		//pane.add(imageView);
-		stage.setScene(scene);
-		stage.show();
-
 		// Save
+		LOGGER.info("Saving network to file " + POKEMON_RBM);
 		NetworkIOTools.SaveNetworkToDisk(rbm, POKEMON_RBM);
 
-		// Repeated draw.
-		Timeline timeline = new Timeline();
-		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), new EventHandler<ActionEvent>() {
-			@Override
-			public void handle(ActionEvent event) {
-				//rbmTrainer.train(edgeDetector, data, null, null);
-				final Matrix daydream = rbm.daydream(1, 1);
-				final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(daydream, 0.5, BPP);
-				final Matrix reshaped = greyImage.reshape_i(IMG_WIDTH, IMG_HEIGHT);
-				Image img = ImageTools.MatrixToFXImage(reshaped);
-				imageView.setImage(img);
-				System.out.println("Image drawn.  Looping.");
-				Thread.yield();
-			}
-		}));
-		timeline.playFromStart();
-
-		stage.setOnCloseRequest((WindowEvent w) -> {
-			timeline.stop();
+		// Set up UI
+		// We should do this in Scene Builder and make FXML, but it's only a demo.
+		stage.setTitle("Aij Test UI");
+		HBox back = new HBox();
+		ImageView imageView = new ImageView();
+		imageView.setSmooth(false);
+		imageView.setFitWidth(IMG_WIDTH * 10);
+		imageView.setFitHeight(IMG_HEIGHT * 10);
+		back.getChildren().add(imageView);
+		VBox controls = new VBox();
+		TextField cyclesInput = new TextField();
+		cyclesInput.setText("1");
+		controls.getChildren().add(cyclesInput);
+		TextField threshold = new TextField();
+		threshold.setText("0.9");
+		controls.getChildren().add(threshold);
+		Button dreamButton = new Button();
+		dreamButton.setText("Generate");
+		dreamButton.setOnAction((ActionEvent ae) -> {
+			final Matrix daydream = rbm.daydream(1, Integer.parseInt(cyclesInput.getText()));
+			final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(daydream, Double.parseDouble(threshold.getText()), BPP);
+			final Matrix reshaped = greyImage.reshape_i(IMG_WIDTH, IMG_HEIGHT);
+			Image img = ImageTools.MatrixToFXImage(reshaped);
+			imageView.setImage(img);
+			System.out.println("Image drawn.  Looping.");
 		});
+		controls.getChildren().add(dreamButton);
+		back.getChildren().add(controls);
+
+		Scene scene = new Scene(back, WIDTH, HEIGHT);
+		stage.setScene(scene);
+		stage.show();
 	}
 
 	public void imageDemo(Stage stage) {

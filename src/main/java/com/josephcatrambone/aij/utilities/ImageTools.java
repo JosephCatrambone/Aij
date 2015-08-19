@@ -57,7 +57,7 @@ public class ImageTools {
 		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns()*bitsPerPixel);
 		for(int row=0; row < matrix.numRows(); row++) {
 			for(int column=0; column < matrix.numColumns(); column++) {
-				int value = (int)(Math.pow(2, bitsPerPixel)*matrix.get(row, column));
+				int value = (int)((Math.pow(2, bitsPerPixel)-1)*matrix.get(row, column));
 				for(int bit=0; bit < bitsPerPixel; bit++) {
 					if((value & 0x1) != 0) {
 						output.set(row, column*bitsPerPixel + bit, 1.0);
