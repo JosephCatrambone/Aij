@@ -14,8 +14,7 @@ public class IOToolTest {
 	public void testStringIO() {
 		RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(20, 10);
 		String rbmSerialized = NetworkIOTools.NetworkToString(rbm);
-		Network net = NetworkIOTools.StringToNetwork(rbmSerialized);
-		RestrictedBoltzmannMachine rbm2 = (RestrictedBoltzmannMachine)net;
+		RestrictedBoltzmannMachine rbm2 = NetworkIOTools.StringToRBM(rbmSerialized);
 		System.out.println(rbmSerialized);
 		assertArrayEquals("String IO Mismatch", rbm.getWeights(0).getRowArray(0), rbm2.getWeights(0).getRowArray(0), 1e-5);
 	}

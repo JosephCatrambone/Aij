@@ -57,7 +57,7 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 
 	@Override
 	public int getNumLayers() {
-		return 2;
+		return 1;
 	}
 
 	@Override
@@ -91,19 +91,16 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	}
 
 	public Matrix daydream(int numSamples, int numCycles) {
-		return daydream(numSamples, numCycles, true);
+		return daydream(numSamples, numCycles, true, true);
 	}
 
-	public Matrix daydream(int numSamples, int numCycles, boolean binary) {
+	public Matrix daydream(int numSamples, int numCycles, boolean binaryIntermediate, boolean binaryTerminal) {
 		// Do numCycles gibbs samples to produce numSample sampels.
 		Matrix input = Matrix.random(numSamples, getNumInputs());
 		for(int i=0; i < numCycles; i++) {
-			input = reconstruct(predict(input), true);
+			input = reconstruct(predict(input), binaryIntermediate);
 		}
-		if(binary) {
-			return input;
-		} else {
-			return reconstruct(predict(input), false);
-		}
+
+		return reconstruct(predict(input), binaryTerminal);
 	}
 }

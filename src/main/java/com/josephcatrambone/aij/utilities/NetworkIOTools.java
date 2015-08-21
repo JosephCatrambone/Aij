@@ -3,8 +3,10 @@ package com.josephcatrambone.aij.utilities;
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.layers.Layer;
 import com.josephcatrambone.aij.networks.Network;
+import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
 
 import java.io.*;
+import java.text.ParseException;
 import java.util.Scanner;
 
 /**
@@ -62,30 +64,31 @@ public class NetworkIOTools {
 		// Doesn't return anything, but lets us be consistent with the exceptions we're raising below
 		String s = scanner.next();
 		if(!identifier.equals(s)) {
-			System.err.println("Expectation mismatch: " + identifier + " != " + s);
+			String error = "Expectation mismatch: " + identifier + " != " + s;
+			System.err.println(error);
 		}
 	}
 
-	public static Network StringToNetwork(String string) {
+	public static RestrictedBoltzmannMachine StringToRBM(String string) {
 		Scanner scanner = new Scanner(string);
-		Network net = null;
+		RestrictedBoltzmannMachine rbm = null;
 
 		// Instance the network.
 		try {
 			expectString(scanner, "class");
 			Class networkType = Class.forName(scanner.next());
-			net = (Network) networkType.newInstance();
+			//rbm = (RestrictedBoltzmannMachine)networkType.newInstance();
 		} catch(ClassNotFoundException cnfe) {
 			System.err.println(cnfe);
 			return null;
-		} catch(IllegalAccessException iae) {
+		}/* catch(IllegalAccessException iae) {
 			System.err.println(iae);
 			return null;
 		} catch (InstantiationException e) {
 			System.err.println(e);
 			//e.printStackTrace();
 			return null;
-		}
+		}*/
 
 		// Get network size.
 		expectString(scanner, "numlayers");
@@ -93,7 +96,7 @@ public class NetworkIOTools {
 		// Load all layers.
 		for(int i=0; i < numLayers; i++) {
 			expectString(scanner, "layer");
-			assert scanner.nextInt() == i;
+			int layer = scanner.nextInt();
 			expectString(scanner, "inputs");
 			int inputs = scanner.nextInt();
 			expectString(scanner, "outputs");
@@ -101,14 +104,15 @@ public class NetworkIOTools {
 			expectString(scanner, "activation");
 			scanner.next(); // Read eventually.
 			expectString(scanner, "weights");
-			Matrix weights = new Matrix();
+			Matrix weights = Matrix.zeros(inputs, outputs);
 			for(int j=0; j < inputs; j++) {
 				for(int k=0; k < outputs; k++) {
 					weights.set(j, k, scanner.nextDouble());
 				}
 			}
-			net.setWeights(i, weights);
+			rbm = new RestrictedBoltzmannMachine(inputs, outputs);
+			rbm.setWeights(i, weights);
 		}
-		return net;
+		return rbm;
 	}
 }

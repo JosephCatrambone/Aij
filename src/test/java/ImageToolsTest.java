@@ -10,28 +10,27 @@ import static org.junit.Assert.assertArrayEquals;
 public class ImageToolsTest {
 	@Test
 	public void testImageBitConversion() {
-		int bits = 16;
 		double totalError = 0;
 		Matrix bitMatrix;
 		Matrix m2;
 		Matrix diff;
 		Matrix m = new Matrix(new double[][] {
-				{0.0},
-				{0.1},
-				{0.2},
-				{0.3},
-				{0.4},
-				{0.5},
-				{0.6},
-				{0.7},
-				{0.8},
-				{0.9},
-				{1.0}
+				{0.0, 1.0},
+				{0.1, 0.9},
+				{0.2, 0.8},
+				{0.3, 0.7},
+				{0.4, 0.6},
+				{0.5, 0.5},
+				{0.6, 0.4},
+				{0.7, 0.3},
+				{0.8, 0.2},
+				{0.9, 0.1},
+				{1.0, 0.0}
 		});
 
 		for(Integer i : new int[]{4, 8, 16}) {
 			// 16 bits
-			bits = i;
+			int bits = i;
 			bitMatrix = ImageTools.GreyMatrixToBitMatrix(m, bits);
 			m2 = ImageTools.BitMatrixToGrayMatrix(bitMatrix, 0.9, bits);
 			diff = m2.subtract(m);
