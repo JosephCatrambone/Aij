@@ -18,14 +18,17 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextField;
 import javafx.scene.image.*;
+import javafx.scene.image.Image;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 
+import java.awt.*;
 import java.io.*;
 import java.util.Random;
 import java.util.Scanner;
@@ -48,26 +51,36 @@ public class Main extends Application {
 		LOGGER.info("Training pokemon RBM.");
 
 		// Learning data and consts
+		Random random = new Random();
 		final String POKEMON_PATH = "D:\\Source\\pokemon\\main-sprites\\red-blue\\";
 		final String POKEMON_RBM = "pokemon_rbm.net";
 		final int BPP = 4;
-		final int HIDDEN_SIZE = 32*32;
+		final int HIDDEN_SIZE = 64;
 		final int NUM_POKEMON = 151;
 		final int IMG_WIDTH = 40;
 		final int IMG_HEIGHT = 40;
-		final int DAYDREAM_CYCLES = 10;
 		Matrix data = Matrix.zeros(NUM_POKEMON, IMG_WIDTH*IMG_HEIGHT*BPP);
-		Network temp; // Used to load because the others have to be final.
+		Network temp = null; // Used to load because the others have to be final.
 		final RestrictedBoltzmannMachine rbm;
 
 		// Load or build RBM for learning
-		temp = NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
+		try {
+			BufferedReader fin = new BufferedReader(new FileReader(POKEMON_RBM));
+			StringBuilder sb = new StringBuilder();
+			String line = "";
+			while((line = fin.readLine()) != null) {
+				sb.append(line + "\n");
+			}
+			temp = NetworkIOTools.StringToRBM(sb.toString()); //NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
+		} catch(IOException ioe) {}
+
 		if(temp != null) {
 			// Load RBM
 			LOGGER.info("Loaded RBM from file." + POKEMON_RBM);
 			rbm = (RestrictedBoltzmannMachine)temp;
 		} else {
 			LOGGER.info("Training RBM on Pokemon from folder " + POKEMON_PATH);
+
 			// Load data
 			for(int i=0; i < NUM_POKEMON; i++) {
 				LOGGER.info("Loaded Pokemon " + i);
@@ -79,10 +92,10 @@ public class Main extends Application {
 			// Train RBM
 			rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT*BPP, HIDDEN_SIZE);
 			RBMTrainer rbmTrainer = new RBMTrainer();
-			rbmTrainer.batchSize = 10;
+			rbmTrainer.batchSize = 1;
 			rbmTrainer.learningRate = 0.1;
 			rbmTrainer.notificationIncrement = 1000;
-			rbmTrainer.maxIterations = 250001;
+			rbmTrainer.maxIterations = 200001;
 			rbmTrainer.earlyStopError = 0.01;
 			rbmTrainer.train(rbm, examples, null, new Runnable() {
 				int i = 0;
@@ -96,7 +109,13 @@ public class Main extends Application {
 
 		// Save
 		LOGGER.info("Saving network to file " + POKEMON_RBM);
-		NetworkIOTools.SaveNetworkToDisk(rbm, POKEMON_RBM);
+		//NetworkIOTools.SaveNetworkToDisk(rbm, POKEMON_RBM);
+		try(BufferedWriter fout = new BufferedWriter(new FileWriter(POKEMON_RBM))) {
+			fout.write(NetworkIOTools.NetworkToString(rbm));
+			fout.close();
+		} catch(IOException ioe) {
+			System.err.println("Error writing network to disk: " + ioe);
+		}
 
 		// Set up UI
 		// We should do this in Scene Builder and make FXML, but it's only a demo.
@@ -114,13 +133,17 @@ public class Main extends Application {
 		TextField threshold = new TextField();
 		threshold.setText("0.9");
 		controls.getChildren().add(threshold);
+		CheckBox stochasticIntermediate = new CheckBox();
+		controls.getChildren().add(stochasticIntermediate);
+		CheckBox stochasticFinal = new CheckBox();
+		controls.getChildren().add(stochasticFinal);
 		Button dreamButton = new Button();
 		dreamButton.setText("Generate");
 		dreamButton.setOnAction((ActionEvent ae) -> {
-			final Matrix daydream = rbm.daydream(1, Integer.parseInt(cyclesInput.getText()));
-			final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(daydream, Double.parseDouble(threshold.getText()), BPP);
-			final Matrix reshaped = greyImage.reshape_i(IMG_WIDTH, IMG_HEIGHT);
-			Image img = ImageTools.MatrixToFXImage(reshaped);
+			final Matrix daydream = rbm.daydream(1, Integer.parseInt(cyclesInput.getText()), stochasticIntermediate.isSelected(), stochasticFinal.isSelected());
+			final Matrix reshaped = daydream.reshape_i(IMG_WIDTH, IMG_HEIGHT*BPP);
+			final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(reshaped, Double.parseDouble(threshold.getText()), BPP);
+			Image img = ImageTools.MatrixToFXImage(greyImage);
 			imageView.setImage(img);
 			System.out.println("Image drawn.  Looping.");
 		});
