@@ -1,8 +1,6 @@
 package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.layers.*;
-import org.omg.PortableInterceptor.ACTIVE;
 
 import java.io.Serializable;
 import java.util.Random;
@@ -61,16 +59,6 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	}
 
 	@Override
-	public Layer getLayer(int i) {
-		throw new ArrayIndexOutOfBoundsException(i);
-	}
-
-	@Override
-	public void setLayer(int i, Layer layer) {
-		throw new ArrayIndexOutOfBoundsException(i);
-	}
-
-	@Override
 	public Matrix getWeights(int i) {
 		return weights;
 	}
@@ -78,16 +66,6 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	@Override
 	public void setWeights(int i, Matrix weights) {
 		this.weights = weights;
-	}
-
-	// Non-standard methods.
-
-	public Layer getVisible() {
-		return null;
-	}
-
-	public Layer getHidden() {
-		return null;
 	}
 
 	public Matrix daydream(int numSamples, int numCycles) {

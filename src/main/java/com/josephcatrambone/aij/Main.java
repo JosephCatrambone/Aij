@@ -71,7 +71,9 @@ public class Main extends Application {
 			while((line = fin.readLine()) != null) {
 				sb.append(line + "\n");
 			}
-			temp = NetworkIOTools.StringToRBM(sb.toString()); //NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
+			Matrix weights = NetworkIOTools.StringToWeights(sb.toString()); //NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
+			temp = new RestrictedBoltzmannMachine(weights.numRows(), weights.numColumns());
+			temp.setWeights(0, weights);
 		} catch(IOException ioe) {}
 
 		if(temp != null) {
@@ -111,7 +113,7 @@ public class Main extends Application {
 		LOGGER.info("Saving network to file " + POKEMON_RBM);
 		//NetworkIOTools.SaveNetworkToDisk(rbm, POKEMON_RBM);
 		try(BufferedWriter fout = new BufferedWriter(new FileWriter(POKEMON_RBM))) {
-			fout.write(NetworkIOTools.NetworkToString(rbm));
+			fout.write(NetworkIOTools.WeightsToString(rbm.getWeights(0)));
 			fout.close();
 		} catch(IOException ioe) {
 			System.err.println("Error writing network to disk: " + ioe);
@@ -141,7 +143,7 @@ public class Main extends Application {
 		dreamButton.setText("Generate");
 		dreamButton.setOnAction((ActionEvent ae) -> {
 			final Matrix daydream = rbm.daydream(1, Integer.parseInt(cyclesInput.getText()), stochasticIntermediate.isSelected(), stochasticFinal.isSelected());
-			final Matrix reshaped = daydream.reshape_i(IMG_WIDTH, IMG_HEIGHT*BPP);
+			final Matrix reshaped = daydream.reshape_i(IMG_WIDTH, IMG_HEIGHT * BPP);
 			final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(reshaped, Double.parseDouble(threshold.getText()), BPP);
 			Image img = ImageTools.MatrixToFXImage(greyImage);
 			imageView.setImage(img);

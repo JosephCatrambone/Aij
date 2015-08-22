@@ -1,7 +1,6 @@
 package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.layers.Layer;
 
 import java.io.Serializable;
 
@@ -58,16 +57,6 @@ public class DeepNetwork implements Network, Serializable {
 	@Override
 	public int getNumLayers() {
 		return networks.length;
-	}
-
-	@Override
-	public Layer getLayer(int i) {
-		return null;
-	}
-
-	@Override
-	public void setLayer(int i, Layer layer) {
-
 	}
 
 	@Override

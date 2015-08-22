@@ -1,7 +1,6 @@
 package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.layers.Layer;
 
 import java.io.Serializable;
 import java.util.function.Consumer;
@@ -64,15 +63,6 @@ public class FunctionNetwork implements Network, Serializable {
 	@Override
 	public int getNumLayers() {
 		return 0;
-	}
-
-	@Override
-	public Layer getLayer(int i) {
-		return null;
-	}
-
-	@Override
-	public void setLayer(int i, Layer layer) {
 	}
 
 	@Override

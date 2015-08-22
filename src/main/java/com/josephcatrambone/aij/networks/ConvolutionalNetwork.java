@@ -1,7 +1,6 @@
 package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.layers.Layer;
 
 import java.io.Serializable;
 
@@ -191,16 +190,6 @@ public class ConvolutionalNetwork implements Network, Serializable {
 	@Override
 	public int getNumLayers() {
 		return operator.getNumLayers();
-	}
-
-	@Override
-	public Layer getLayer(int i) {
-		return operator.getLayer(i);
-	}
-
-	@Override
-	public void setLayer(int i, Layer layer) {
-		operator.setLayer(i, layer);
 	}
 
 	@Override

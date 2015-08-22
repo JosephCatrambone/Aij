@@ -1,9 +1,7 @@
 package com.josephcatrambone.aij.trainers;
 
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.layers.Layer;
 import com.josephcatrambone.aij.networks.Network;
-import com.josephcatrambone.aij.networks.NeuralNetwork;
 import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
 
 import java.util.Arrays;

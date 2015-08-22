@@ -1,7 +1,6 @@
 package com.josephcatrambone.aij.trainers;
 
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.layers.Layer;
 import com.josephcatrambone.aij.networks.Network;
 import com.josephcatrambone.aij.networks.NeuralNetwork;
 
@@ -35,7 +34,6 @@ public class BackpropTrainer implements Trainer {
 		deltaWeights = new Matrix[nn.getNumLayers()-1];
 		double sumError = Double.MAX_VALUE;
 		int[] sampleIndices = new int[batchSize];
-		Matrix[] layerActivity = new Matrix[nn.getNumLayers()];
 		Matrix[] layerActivation = new Matrix[nn.getNumLayers()];
 		Matrix[] layerGradient = new Matrix[nn.getNumLayers()];
 
@@ -50,13 +48,11 @@ public class BackpropTrainer implements Trainer {
 
 			Matrix x = inputs.getRows(sampleIndices);
 
-			nn.forwardPropagate(x);
+			Matrix[] forwardPass = nn.forwardPropagate(x);
 
 			for(int j=0; j < nn.getNumLayers(); j++) {
-				Layer lay = nn.getLayer(j);
-				layerActivity[j] = lay.getActivities();
-				layerActivation[j] = lay.getActivations();
-				layerGradient[j] = lay.getGradient();
+				layerActivation[j] = forwardPass[j];
+				layerGradient[j] = layerActivation[j].elementOp(nn.getDerivativeFunction(j));
 			}
 
 			// Delta(L) = (activation - truth) dot (activity)
@@ -64,7 +60,7 @@ public class BackpropTrainer implements Trainer {
 
 			Matrix error = labels.getRows(sampleIndices).subtract(layerActivation[layerActivation.length-1]);
 			sumError = error.sum();
-			weightBlame[nn.getNumLayers()-1] = error.elementMultiply(layerGradient[layerActivity.length-1]);
+			weightBlame[nn.getNumLayers()-1] = error.elementMultiply(layerGradient[layerActivation.length-1]); // Was activity
 			biasBlame[nn.getNumLayers()-1] = error.sumColumns();
 
 			for(int j=nn.getNumLayers()-2; j >= 0; j--) {
@@ -83,9 +79,6 @@ public class BackpropTrainer implements Trainer {
 			// Apply weight changes.
 			for(int j=0; j < deltaWeights.length; j++) {
 				nn.setWeights(j, nn.getWeights(j).add(deltaWeights[j].elementMultiply(learningRate)));
-			}
-			for(int j=0; j < nn.getNumLayers(); j++) {
-				nn.getLayer(j).setBias(nn.getLayer(j).getBias().add(biasBlame[j].elementMultiply(learningRate)));
 			}
 
 			if(notification != null && notificationIncrement > 0 && i % notificationIncrement == 0) {

@@ -1,9 +1,9 @@
 package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.layers.*;
 
 import java.io.Serializable;
+import java.util.function.UnaryOperator;
 
 /**
  * Created by jcatrambone on 5/28/15.
@@ -12,30 +12,16 @@ public class NeuralNetwork implements Network, Serializable {
 	public static double WEIGHT_SCALE = 0.1;
 
 	private Matrix[] weights;
-	private Layer[] layers;
+	private UnaryOperator[] activationFunctions;
+	private UnaryOperator[] derivativeFromActivationFunctions; // Given c, where c = f(x), compute f^-1(x).
+	// For sigmoid = 1/(1 + e^(-x)) = f(x), dsigmoid(w) = w*(1-w) for w=f(x)
+	// This isn't the derivative from X, it's the derivative from the activation of X.
+	// DON'T SCREW THIS UP.  AGAIN.
 
 	public NeuralNetwork(int[] layerSizes, String[] activationFunctions) {
-		layers = new Layer[layerSizes.length];
 		weights = new Matrix[layerSizes.length-1];
-
-		for(int i=0; i < layerSizes.length; i++) {
-			switch(activationFunctions[i].toLowerCase()) {
-				case "linear":
-					layers[i] = new LinearLayer(layerSizes[i]);
-					break;
-				case "tanh":
-					layers[i] = new TanhLayer(layerSizes[i]);
-					break;
-				case "sigmoid":
-					layers[i] = new SigmoidLayer(layerSizes[i]);
-					break;
-				case "softplus":
-					layers[i] = new SoftplusLayer(layerSizes[i]);
-					break;
-				default:
-					throw new java.lang.IllegalArgumentException("Invalid layer type.");
-			}
-		}
+		this.activationFunctions = new UnaryOperator[layerSizes.length];
+		this.derivativeFromActivationFunctions = new UnaryOperator[layerSizes.length];
 
 		for(int i=0; i < weights.length; i++) {
 			weights[i] = Matrix.random(layerSizes[i], layerSizes[i + 1]);
@@ -43,25 +29,33 @@ public class NeuralNetwork implements Network, Serializable {
 		}
 	}
 
-	public void forwardPropagate(Matrix input) {
-		layers[0].setActivities(input);
+	/*** forwardPropagate
+	 * Given an input, return an array of the activations from every level.
+	 * @param input
+	 * @return
+	 */
+	public Matrix[] forwardPropagate(Matrix input) {
+		Matrix[] results = new Matrix[weights.length+1];
+		results[0] = input.elementOp(activationFunctions[0]);
 		for(int i=0; i < weights.length; i++) {
-			layers[i+1].setActivities(layers[i].getActivations().multiply(weights[i]));
+			results[i+1] = results[i].multiply(weights[i]).elementOp_i(activationFunctions[i+1]);
 		}
+		return results;
 	}
 
-	public void backPropagate(Matrix output) {
-		layers[layers.length-1].setActivities(output); // TODO: Do we set activities or activations?
-		layers[layers.length-1].setActivations(output);
-		for(int i=layers.length-1; i > 0; i--) {
-			layers[i-1].setActivities(layers[i].getActivities().multiply(weights[i-1].transpose()));
+	public Matrix[] backPropagate(Matrix output) {
+		Matrix[] results = new Matrix[weights.length+1];
+		results[weights.length+1] = output;
+		for(int i=weights.length+1; i > 0; i--) {
+			results[i-1] = results[i].multiply(weights[i - 1].transpose());
 		}
+		return results;
 	}
 
 	@Override
 	public Matrix predict(Matrix input) {
-		forwardPropagate(input);
-		return layers[layers.length-1].getActivations();
+		Matrix[] results = forwardPropagate(input);
+		return results[results.length-1];
 	}
 
 	@Override
@@ -71,12 +65,12 @@ public class NeuralNetwork implements Network, Serializable {
 
 	@Override
 	public int getNumInputs() {
-		return layers[0].getSize();
+		return weights[0].numRows();
 	}
 
 	@Override
 	public int getNumOutputs() {
-		return layers[layers.length-1].getSize();
+		return weights[weights.length].numColumns();
 	}
 
 	@Override
@@ -91,16 +85,15 @@ public class NeuralNetwork implements Network, Serializable {
 
 	@Override
 	public int getNumLayers() {
-		return layers.length;
+		return weights.length+1;
 	}
 
-	@Override
-	public Layer getLayer(int index) {
-		return layers[index];
+	public UnaryOperator getActivationFunction(int i) {
+		return activationFunctions[i];
 	}
 
-	@Override
-	public void setLayer(int index, Layer layer) {
-		this.layers[index] = layer;
+	public UnaryOperator getDerivativeFunction(int i) {
+		return derivativeFromActivationFunctions[i];
 	}
+
 }
