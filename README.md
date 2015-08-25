@@ -76,11 +76,6 @@ By making the network trainers separate from the networks themselves, it allows 
 You may have a backprop trainer that you use most of the time, and an Adagrad trainer that you use to impress 
 undergraduates.
 
-## Why make layer a separate type?
-
-Originally, networks were just maintaining their own activations, preactivations, and baises for each layer, 
-but there was so much overlap it made sense to split out the layer type.
-
 ## Why make a matrix type instead of reusing the jBlas DoubleMatrix.
 
 The matrix class is a very thin wrapper which was done because we might want to swap out jblas in the future.
