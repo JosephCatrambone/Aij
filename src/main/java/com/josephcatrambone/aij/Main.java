@@ -3,7 +3,6 @@ package com.josephcatrambone.aij;
 import com.josephcatrambone.aij.networks.*;
 import com.josephcatrambone.aij.trainers.BackpropTrainer;
 import com.josephcatrambone.aij.trainers.ConvolutionalTrainer;
-import com.josephcatrambone.aij.trainers.MeanFilterTrainer;
 import com.josephcatrambone.aij.trainers.RBMTrainer;
 import com.josephcatrambone.aij.utilities.ImageTools;
 import com.josephcatrambone.aij.utilities.NetworkIOTools;
@@ -11,7 +10,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
-import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -20,20 +18,22 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.TextField;
-import javafx.scene.image.*;
 import javafx.scene.image.Image;
-import javafx.scene.layout.*;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.image.WritableImage;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 
-import java.awt.*;
 import java.io.*;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.function.Consumer;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
@@ -44,7 +44,7 @@ public class Main extends Application {
 
 	@Override
 	public void start(Stage stage) {
-		pokemonDemo(stage);
+		mnistDemo(stage);
 	}
 
 	public void pokemonDemo(Stage stage) {
@@ -54,26 +54,24 @@ public class Main extends Application {
 		Random random = new Random();
 		final String POKEMON_PATH = "D:\\Source\\pokemon\\main-sprites\\red-blue\\";
 		final String POKEMON_RBM = "pokemon_rbm.net";
-		final int BPP = 4;
-		final int HIDDEN_SIZE = 64;
+		final int HIDDEN_SIZE = 12*12;
 		final int NUM_POKEMON = 151;
 		final int IMG_WIDTH = 40;
 		final int IMG_HEIGHT = 40;
-		Matrix data = Matrix.zeros(NUM_POKEMON, IMG_WIDTH*IMG_HEIGHT*BPP);
+		Matrix data = Matrix.zeros(NUM_POKEMON, IMG_WIDTH*IMG_HEIGHT);
 		Network temp = null; // Used to load because the others have to be final.
 		final RestrictedBoltzmannMachine rbm;
 
 		// Load or build RBM for learning
-		try {
-			BufferedReader fin = new BufferedReader(new FileReader(POKEMON_RBM));
+		try(BufferedReader fin = new BufferedReader(new FileReader(POKEMON_RBM))) {
 			StringBuilder sb = new StringBuilder();
 			String line = "";
 			while((line = fin.readLine()) != null) {
 				sb.append(line + "\n");
 			}
 			Matrix weights = NetworkIOTools.StringToWeights(sb.toString()); //NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
-			temp = new RestrictedBoltzmannMachine(weights.numRows(), weights.numColumns());
-			temp.setWeights(0, weights);
+			//temp = new RestrictedBoltzmannMachine(weights.numRows(), weights.numColumns());
+			//temp.setWeights(0, weights);
 		} catch(IOException ioe) {}
 
 		if(temp != null) {
@@ -86,37 +84,40 @@ public class Main extends Application {
 			// Load data
 			for(int i=0; i < NUM_POKEMON; i++) {
 				LOGGER.info("Loaded Pokemon " + i);
-				Matrix mat = ImageTools.GreyMatrixToBitMatrix(ImageTools.ImageFileToMatrix(POKEMON_PATH + i + ".png", IMG_WIDTH, IMG_HEIGHT), BPP);
-				data.setRow(i, mat.reshape_i(1, IMG_WIDTH * IMG_HEIGHT * BPP));
+				Matrix mat = ImageTools.ImageFileToMatrix(POKEMON_PATH + i + ".png", IMG_WIDTH, IMG_HEIGHT);
+				data.setRow(i, mat.reshape_i(1, IMG_WIDTH * IMG_HEIGHT));
 			}
-			Matrix examples = data;
 
 			// Train RBM
-			rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT*BPP, HIDDEN_SIZE);
+			rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT, HIDDEN_SIZE);
 			RBMTrainer rbmTrainer = new RBMTrainer();
 			rbmTrainer.batchSize = 1;
 			rbmTrainer.learningRate = 0.1;
-			rbmTrainer.notificationIncrement = 1000;
-			rbmTrainer.maxIterations = 200001;
-			rbmTrainer.earlyStopError = 0.01;
-			rbmTrainer.train(rbm, examples, null, new Runnable() {
+			rbmTrainer.notificationIncrement = 500;
+			rbmTrainer.maxIterations = 200000;
+			rbmTrainer.earlyStopError = 0.0; // Disable early out.
+
+			// Notification
+			Runnable notification = new Runnable() {
 				int i = 0;
 				@Override
 				public void run() {
 					LOGGER.info("Iteration " + (i * rbmTrainer.notificationIncrement) + " error: " + rbmTrainer.lastError);
+					ImageTools.FXImageToDisk(visualizeRBM(rbm, null, true), "rbm_in_training.png");
 					i++;
 				}
-			});
-		}
+			};
 
-		// Save
-		LOGGER.info("Saving network to file " + POKEMON_RBM);
-		//NetworkIOTools.SaveNetworkToDisk(rbm, POKEMON_RBM);
-		try(BufferedWriter fout = new BufferedWriter(new FileWriter(POKEMON_RBM))) {
-			fout.write(NetworkIOTools.WeightsToString(rbm.getWeights(0)));
-			fout.close();
-		} catch(IOException ioe) {
-			System.err.println("Error writing network to disk: " + ioe);
+			rbmTrainer.train(rbm, data, null, notification);
+
+			// Save
+			LOGGER.info("Saving network to file " + POKEMON_RBM);
+			try(BufferedWriter fout = new BufferedWriter(new FileWriter(POKEMON_RBM))) {
+				fout.write(NetworkIOTools.WeightsToString(rbm.getWeights(0)));
+				fout.close();
+			} catch(IOException ioe) {
+				System.err.println("Error writing network to disk: " + ioe);
+			}
 		}
 
 		// Set up UI
@@ -142,9 +143,15 @@ public class Main extends Application {
 		Button dreamButton = new Button();
 		dreamButton.setText("Generate");
 		dreamButton.setOnAction((ActionEvent ae) -> {
-			final Matrix daydream = rbm.daydream(1, Integer.parseInt(cyclesInput.getText()), stochasticIntermediate.isSelected(), stochasticFinal.isSelected());
-			final Matrix reshaped = daydream.reshape_i(IMG_WIDTH, IMG_HEIGHT * BPP);
-			final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(reshaped, Double.parseDouble(threshold.getText()), BPP);
+			LOGGER.info("Num columns: " + rbm.predict(data).numColumns());
+			LOGGER.info("Num columns: " + rbm.predict(data).numRows());
+			final Matrix greyImage = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE));
+			// TODO: Start here.  This next line is being fucky.  Looks like greyImage is 20x20.
+			greyImage.reshape_i(IMG_WIDTH, IMG_HEIGHT);
+			greyImage.normalize_i();
+			//final Matrix daydream = rbm.daydream(1, Integer.parseInt(cyclesInput.getText()), stochasticIntermediate.isSelected(), stochasticFinal.isSelected());
+			//final Matrix reshaped = daydream.reshape_i(IMG_WIDTH, IMG_HEIGHT * BPP);
+			//final Matrix greyImage = ImageTools.BitMatrixToGrayMatrix(reshaped, Double.parseDouble(threshold.getText()), BPP);
 			Image img = ImageTools.MatrixToFXImage(greyImage);
 			imageView.setImage(img);
 			System.out.println("Image drawn.  Looping.");
@@ -289,10 +296,11 @@ public class Main extends Application {
 		// Build RBM for learning
 		RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(28*28, 8*8);
 		RBMTrainer rbmTrainer = new RBMTrainer();
-		rbmTrainer.batchSize = 1; // 5x20
-		rbmTrainer.learningRate = 0.1;
-		rbmTrainer.maxIterations = 1000;
+		rbmTrainer.batchSize = 20; // 5x20
+		rbmTrainer.learningRate = 0.01;
+		rbmTrainer.maxIterations = 10;
 
+		/*
 		// Make mean filter
 		MeanFilterNetwork mfn = new MeanFilterNetwork(28*28);
 		MeanFilterTrainer mft = new MeanFilterTrainer();
@@ -300,6 +308,8 @@ public class Main extends Application {
 
 		// Remove mean
 		Matrix examples = mfn.predict(data);
+		*/
+		Matrix examples = data;
 
 		// Set up UI
 		stage.setTitle("Aij Test UI");
@@ -322,7 +332,7 @@ public class Main extends Application {
 				rbmTrainer.train(rbm, examples, null, null);
 				//rbmTrainer.train(edgeDetector, data, null, null);
 				System.out.println("Trained.  Drawing...");
-				Image img = visualizeRBM(rbm, mfn, true);
+				Image img = visualizeRBM(rbm, null, true);
 				imageView.setImage(img);
 				System.out.println(img.getWidth() + " x " + img.getHeight() + " image drawn.  Looping.");
 			}
@@ -359,14 +369,12 @@ public class Main extends Application {
 			int width = random.nextInt(IMAGE_WIDTH-xStart);
 			int yStart = 1+random.nextInt(IMAGE_HEIGHT-MIN_RECT_SIZE-1);
 			int height = random.nextInt(IMAGE_HEIGHT-yStart);
-			for(int j=0; j < width; j++) {
-				example.set(yStart, j, 1.0);
-				example.set(yStart+height, j, 1.0);
+			for(int k=yStart; k < yStart+height; k++) {
+				for(int j=xStart; j < xStart+width; j++) {
+					example.set(k, j, 1.0);
+				}
 			}
-			for(int j=0; j < height; j++) {
-				example.set(j, xStart, 1.0);
-				example.set(j, xStart+width, 1.0);
-			}
+
 			// Flatten and add to examples
 			example.reshape_i(1, IMAGE_WIDTH*IMAGE_HEIGHT);
 			x.setRow(i, example);
@@ -376,10 +384,10 @@ public class Main extends Application {
 		// Build backend
 		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(IMAGE_WIDTH*IMAGE_HEIGHT, 16);
 		RBMTrainer trainer = new RBMTrainer();
-		trainer.batchSize = 10;
+		trainer.batchSize = 1;
 		trainer.learningRate = 0.1;
-		trainer.notificationIncrement = 2000;
-		trainer.maxIterations = 2001;
+		trainer.notificationIncrement = 200;
+		trainer.maxIterations = 201;
 
 		Runnable updateFunction = new Runnable() {
 			int iteration=0;
@@ -444,6 +452,7 @@ public class Main extends Application {
 				//} catch(IOException ioe) {
 				//	System.out.println("Problem writing output.png");
 				//}
+				Thread.yield();
 			}
 		}));
 		timeline.playFromStart();
@@ -572,7 +581,7 @@ public class Main extends Application {
 	}
 
 	public Matrix loadMNIST(final String filename) {
-		int numImages = 10000;
+		int numImages = 1000;
 		int imgWidth = -1;
 		int imgHeight = -1;
 		Matrix trainingData = null;
@@ -592,7 +601,7 @@ public class Main extends Application {
 				for(int y=0; y < imgHeight; y++) {
 					for(int x=0; x < imgWidth; x++) {
 						int grey = ((int)din.readByte()) & 0xFF; // Java is always signed.  Need to and with 0xFF to undo it.
-						trainingData.set(i, x+y*imgWidth, ((double)(grey-128.0))/128.0);
+						trainingData.set(i, x+(y*imgWidth), ((double)grey)/256.0);
 					}
 				}
 				if(i%1000 == 0) {
