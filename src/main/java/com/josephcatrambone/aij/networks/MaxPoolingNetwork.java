@@ -1,7 +1,6 @@
 package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.layers.Layer;
 
 import java.io.Serializable;
 import java.util.Random;

@@ -35,6 +35,7 @@ public class ConvolutionalTrainer implements Trainer {
 
 		// Remove the old operator (that we are training) from the network and replace with our example spy.
 		Network op = cn.getOperator();
+		// TODO: Verify op output matches cw+ch sizes.
 
 		FunctionNetwork netSpy = new FunctionNetwork(op.getNumInputs(), op.getNumOutputs());
 		Matrix windowData = new Matrix(subwindowsPerExample, op.getNumInputs());

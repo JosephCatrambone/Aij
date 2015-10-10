@@ -316,7 +316,7 @@ public class Main extends Application {
 		GridPane pane = new GridPane();
 		pane.setAlignment(Pos.CENTER);
 		Scene scene = new Scene(pane, WIDTH, HEIGHT);
-		ImageView imageView = new ImageView(visualizeRBM(rbm, null, false));
+		ImageView imageView = new ImageView(visualizeRBM(rbm, null, true));
 		pane.getChildren().add(imageView);
 		//pane.add(imageView);
 		stage.setScene(scene);
@@ -334,7 +334,7 @@ public class Main extends Application {
 				System.out.println("Trained.  Drawing...");
 				Image img = visualizeRBM(rbm, null, true);
 				imageView.setImage(img);
-				System.out.println(img.getWidth() + " x " + img.getHeight() + " image drawn.  Looping.");
+				System.out.println("Error: " + rbmTrainer.lastError);
 			}
 		}));
 		timeline.playFromStart();
@@ -555,22 +555,13 @@ public class Main extends Application {
 			}
 
 			// Normalize data if needed
-			double low = 0;
-			double high = 1;
 			if(normalizeIntensity) {
-				low = Double.MAX_VALUE;
-				high = Double.MIN_VALUE;
-				for(int j=0; j < reconstruction.numColumns(); j++) {
-					double val = reconstruction.get(0, j);
-					if (val < low) { low = val; }
-					if (val > high) { high = val; }
-				}
+				reconstruction.normalize_i();
 			}
 
 			// Rebuild and draw input to image
 			for(int j=0; j < reconstruction.numColumns(); j++) {
 				double val = reconstruction.get(0, j);
-				val = (val-low)/(high-low);
 				if(val < 0) { val = 0; }
 				if(val > 1) { val = 1; }
 				pw.setColor(subImgOffsetX + (j%subImgWidth), subImgOffsetY + (j/subImgWidth), Color.gray(val));

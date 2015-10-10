@@ -68,7 +68,7 @@ public class NetworkIOTools {
 		expectString(scanner, "columns");
 		int outputs = scanner.nextInt();
 		expectString(scanner, "weights");
-		Matrix weights = new Matrix();
+		Matrix weights = new Matrix(inputs, outputs);
 		for (int j = 0; j < inputs; j++) {
 			for (int k = 0; k < outputs; k++) {
 				weights.set(j, k, scanner.nextDouble());

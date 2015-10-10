@@ -28,7 +28,7 @@ public class RBMTrainer implements Trainer {
 		RestrictedBoltzmannMachine rbm = (RestrictedBoltzmannMachine)net; // We only train neural networks.
 		final Matrix weights = rbm.getWeights(0);
 		final Matrix visibleBias = rbm.getVisibleBias();
-		final Matrix hiddenBias = rbm.getHiddenBias();
+		//final Matrix hiddenBias = rbm.getHiddenBias();
 		int[] sampleIndices = new int[batchSize];
 
 		for(int i=0; i < maxIterations && lastError > earlyStopError; i++) {
@@ -42,9 +42,8 @@ public class RBMTrainer implements Trainer {
 
 			// Positive CD phase.
 			final Matrix positiveHiddenActivations = x.multiply(weights);
-			//final Matrix positiveHiddenProbabilities = hiddenBias.transpose().repmat(1, positiveHiddenActivations.numColumns()).add(positiveHiddenActivations).sigmoid();
-			final Matrix positiveHiddenProbabilities = positiveHiddenActivations.sigmoid();
-			final Matrix positiveHiddenStates = positiveHiddenProbabilities.elementOp(
+			final Matrix positiveHiddenProbabilities = positiveHiddenActivations.sigmoid(); // Tried introducing bias here in both places (before/after sigmoid).  Didn't work.
+			final Matrix positiveHiddenStates = positiveHiddenProbabilities.elementOp( // Also tried wrapping this with hidden bias.
 				v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
 
 			final Matrix positiveProduct = x.transpose().multiply(positiveHiddenProbabilities);
@@ -62,7 +61,7 @@ public class RBMTrainer implements Trainer {
 			weights.add_i(positiveProduct.subtract(negativeProduct).elementMultiply(learningRate / (float) batchSize));
 			visibleBias.subtract_i(x.subtract(negativeVisibleProbabilities).meanRow().elementMultiply(learningRate));
 			//hiddenBias.subtract_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
-			lastError = x.subtract(negativeVisibleProbabilities).elementOp_i(v -> v*v).sum();
+			lastError = x.subtract(negativeVisibleProbabilities).elementOp_i(v -> v*v).sum()/(float)batchSize;
 
 			if(notification != null && notificationIncrement > 0 && (i+1)%notificationIncrement == 0) {
 				notification.run();

@@ -29,9 +29,9 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	@Override
 	public Matrix predict(Matrix input) {
 		final Matrix biasedInput = visibleBias.repmat(input.numRows(), 1).add(input);
-		final Matrix activities = hiddenBias.transpose().repmat(1, biasedInput.numColumns()).add(biasedInput.multiply(weights));
+		final Matrix activities = biasedInput.multiply(weights);
 		activities.elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
-		return activities;
+		return hiddenBias.repmat(input.numRows(), 1).add(activities);
 	}
 
 	@Override
@@ -41,7 +41,7 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 
 	public Matrix reconstruct(Matrix output, boolean stochastic) {
 		final Matrix biasedOutput = output.subtract(hiddenBias.repmat(output.numRows(), 1));
-		final Matrix result = (biasedOutput.multiply(weights.transpose())).subtract_i(visibleBias.repmat(1, output.numRows()));
+		final Matrix result = (biasedOutput.multiply(weights.transpose())).subtract(visibleBias.repmat(output.numRows(), 1));
 		if(stochastic) {
 			return result.elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
 		} else {
