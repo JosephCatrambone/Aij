@@ -7,6 +7,7 @@ import javafx.scene.image.*;
 import javafx.scene.paint.Color;
 
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
@@ -54,7 +55,7 @@ public class ImageTools {
 	 * @return
 	 */
 	public static Matrix GreyMatrixToBitMatrix(Matrix matrix, int bitsPerPixel) {
-		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns()*bitsPerPixel);
+		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns() * bitsPerPixel);
 		for(int row=0; row < matrix.numRows(); row++) {
 			for(int column=0; column < matrix.numColumns(); column++) {
 				int value = (int)((Math.pow(2, bitsPerPixel)-1)*matrix.get(row, column));
@@ -76,7 +77,7 @@ public class ImageTools {
 	 * @return
 	 */
 	public static Matrix BitMatrixToGrayMatrix(Matrix matrix, double threshold, int bitsPerPixel) {
-		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns()/bitsPerPixel);
+		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns() / bitsPerPixel);
 		for(int row=0; row < matrix.numRows(); row++) {
 			for(int column=0; column < matrix.numColumns()/bitsPerPixel; column++) {
 				double accumulator = 0;
@@ -92,12 +93,22 @@ public class ImageTools {
 	}
 
 	public static Image MatrixToFXImage(Matrix matrix) {
+		return MatrixToFXImage(matrix, true);
+	}
+
+	public static Image MatrixToFXImage(Matrix matrix, boolean normalize) {
 		WritableImage img = new WritableImage(matrix.numColumns(), matrix.numRows());
 		PixelWriter pw = img.getPixelWriter();
 
+		if(normalize) {
+			matrix = matrix.clone(); // So we don't tamper.
+			matrix.normalize_i();
+		}
+
 		for(int y=0; y < matrix.numRows(); y++) {
 			for(int x=0; x < matrix.numColumns(); x++) {
-				pw.setColor(x, y, Color.gray(matrix.get(y, x)));
+				double color = matrix.get(y, x);
+				pw.setColor(x, y, Color.gray(color));
 			}
 		}
 
@@ -111,5 +122,70 @@ public class ImageTools {
 			return false;
 		}
 		return true;
+	}
+
+	public static Matrix imageFileToMatrix(String filename, int width, int height) {
+		try {
+			BufferedImage img = ImageIO.read(new File(filename));
+			return AWTImageToMatrix(img, width, height);
+		} catch(IOException ioe) {
+			return null;
+		}
+	}
+
+	public static boolean matrixToDiskAsImage(Matrix matrix, String filename) {
+		return matrixToDiskAsImage(matrix, filename, true);
+	}
+
+	public static boolean matrixToDiskAsImage(Matrix matrix, String filename, boolean normalize) {
+
+		// Normalize contrast to 0-1.
+		if(normalize) {
+			Matrix preimg = matrix.clone();
+			preimg.normalize_i();
+			matrix = preimg;
+		}
+
+		BufferedImage img = matrixToAWTImage(matrix);
+		try {
+			ImageIO.write(img, "png", new File(filename));
+		} catch(IOException ioe) {
+			return false;
+		}
+		return true;
+	}
+
+	public static Matrix AWTImageToMatrix(BufferedImage img, int width, int height) {
+		if(width != -1 || height != -1) {
+			if(width == -1) { width = img.getWidth(); }
+			if(height == -1) { height = img.getHeight(); }
+			img = (BufferedImage)img.getScaledInstance(width, height, BufferedImage.SCALE_SMOOTH);
+		}
+
+		Matrix matrix = new Matrix(img.getHeight(), img.getWidth());
+
+		for(int y=0; y < img.getHeight(); y++) {
+			for(int x=0; x < img.getWidth(); x++) {
+				int rgb = img.getRGB(x, y);
+				double a = (rgb >> 32 & 0xff)/255.0;
+				double r = (rgb >> 16 & 0xff)/255.0;
+				double g = (rgb >> 8 & 0xff)/255.0;
+				double b = (rgb & 0xff)/255.0;
+				double luminance = Math.sqrt(r*r + g*g + b*b);
+				matrix.set(y, x, luminance);
+			}
+		}
+
+		return matrix;
+	}
+
+	public static BufferedImage matrixToAWTImage(Matrix matrix) {
+		BufferedImage img = new BufferedImage(matrix.numColumns(), matrix.numRows(), BufferedImage.TYPE_BYTE_GRAY);
+		for(int y=0; y < matrix.numRows(); y++) {
+			for(int x=0; x < matrix.numColumns(); x++) {
+				img.setRGB(x, y, (int) (255 * matrix.get(y, x)));
+			}
+		}
+		return img;
 	}
 }
