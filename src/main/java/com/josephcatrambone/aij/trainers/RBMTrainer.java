@@ -4,7 +4,6 @@ import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.networks.Network;
 import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
 
-import java.util.Arrays;
 import java.util.Random;
 
 /**
@@ -28,6 +27,8 @@ public class RBMTrainer implements Trainer {
 	public void train(Network net, Matrix inputs, Matrix labels, Runnable notification) {
 		RestrictedBoltzmannMachine rbm = (RestrictedBoltzmannMachine)net; // We only train neural networks.
 		final Matrix weights = rbm.getWeights(0);
+		final Matrix visibleBias = rbm.getVisibleBias();
+		final Matrix hiddenBias = rbm.getHiddenBias();
 		int[] sampleIndices = new int[batchSize];
 
 		for(int i=0; i < maxIterations && lastError > earlyStopError; i++) {
@@ -37,12 +38,14 @@ public class RBMTrainer implements Trainer {
 				sampleIndices[j] = random.nextInt(inputs.numRows());
 			}
 
-			final Matrix x = inputs.getRows(sampleIndices);
+			final Matrix x = inputs.getRows(sampleIndices).add(visibleBias.repmat(batchSize, 1));
 
 			// Positive CD phase.
 			final Matrix positiveHiddenActivations = x.multiply(weights);
+			//final Matrix positiveHiddenProbabilities = hiddenBias.transpose().repmat(1, positiveHiddenActivations.numColumns()).add(positiveHiddenActivations).sigmoid();
 			final Matrix positiveHiddenProbabilities = positiveHiddenActivations.sigmoid();
-			final Matrix positiveHiddenStates = positiveHiddenProbabilities.elementOp(v -> v > random.nextDouble() ? 1.0 : 0.0);
+			final Matrix positiveHiddenStates = positiveHiddenProbabilities.elementOp(
+				v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
 
 			final Matrix positiveProduct = x.transpose().multiply(positiveHiddenProbabilities);
 
@@ -57,9 +60,8 @@ public class RBMTrainer implements Trainer {
 
 			// Update weights.
 			weights.add_i(positiveProduct.subtract(negativeProduct).elementMultiply(learningRate / (float) batchSize));
-			// TODO: Recheck these bias updates.  I think they're wrong.
-			//rbm.getVisible().setBias(rbm.getVisible().getBias().add(x.subtract(negative_visible_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
-			//rbm.getHidden().setBias(rbm.getHidden().getBias().add(positive_hidden_probabilities.subtract(negative_hidden_probabilities).meanRow().elementMultiply_i(learningRate/(float)batchSize)));
+			visibleBias.subtract_i(x.subtract(negativeVisibleProbabilities).meanRow().elementMultiply(learningRate));
+			//hiddenBias.subtract_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
 			lastError = x.subtract(negativeVisibleProbabilities).elementOp_i(v -> v*v).sum();
 
 			if(notification != null && notificationIncrement > 0 && (i+1)%notificationIncrement == 0) {

@@ -3,9 +3,6 @@ package com.josephcatrambone.aij;
 import org.jblas.DoubleMatrix;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
@@ -264,6 +261,27 @@ public class Matrix implements Serializable {
 	 */
 	public double min() { return this.m.min(); }
 
+	/*** normalize
+	 *
+	 * @return
+	 */
+	public void normalize_i() {
+		double min = Double.MAX_VALUE;
+		double max = -Double.MAX_VALUE;
+		for(int i=0; i < m.rows; i++) {
+			for(int j=0; j < m.columns; j++) {
+				double value = m.get(i, j);
+				if(value < min) { min = value; }
+				if(value > max) { max = value; }
+			}
+		}
+		for(int i=0; i < m.rows; i++) {
+			for(int j=0; j < m.columns; j++) {
+				m.put(i, j, (m.get(i, j)-min)/(max-min));
+			}
+		}
+	}
+
 	public Matrix repmat(int rows, int cols) {
 		return new Matrix(m.repmat(rows, cols));
 	}
@@ -283,7 +301,7 @@ public class Matrix implements Serializable {
 	}
 
 	public Matrix dtanhFromActivation() {
-		return this.elementOp(x -> (1 - x*x));
+		return this.elementOp(x -> (1 - x * x));
 	}
 
 	public Matrix sigmoid() {
