@@ -54,7 +54,7 @@ public class Main extends Application {
 		Random random = new Random();
 		final String POKEMON_PATH = "D:\\Source\\pokemon\\main-sprites\\red-blue\\";
 		final String POKEMON_RBM = "pokemon_rbm.net";
-		final int HIDDEN_SIZE = 12*12;
+		final int HIDDEN_SIZE = 20*20;
 		final int NUM_POKEMON = 151;
 		final int IMG_WIDTH = 40;
 		final int IMG_HEIGHT = 40;
@@ -91,10 +91,10 @@ public class Main extends Application {
 			// Train RBM
 			rbm = new RestrictedBoltzmannMachine(IMG_WIDTH*IMG_HEIGHT, HIDDEN_SIZE);
 			RBMTrainer rbmTrainer = new RBMTrainer();
-			rbmTrainer.batchSize = 1;
+			rbmTrainer.batchSize = 10;
 			rbmTrainer.learningRate = 0.1;
-			rbmTrainer.notificationIncrement = 500;
-			rbmTrainer.maxIterations = 200000;
+			rbmTrainer.notificationIncrement = 100;
+			rbmTrainer.maxIterations = 20000;
 			rbmTrainer.earlyStopError = 0.0; // Disable early out.
 
 			// Notification
@@ -143,10 +143,7 @@ public class Main extends Application {
 		Button dreamButton = new Button();
 		dreamButton.setText("Generate");
 		dreamButton.setOnAction((ActionEvent ae) -> {
-			LOGGER.info("Num columns: " + rbm.predict(data).numColumns());
-			LOGGER.info("Num columns: " + rbm.predict(data).numRows());
 			final Matrix greyImage = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE));
-			// TODO: Start here.  This next line is being fucky.  Looks like greyImage is 20x20.
 			greyImage.reshape_i(IMG_WIDTH, IMG_HEIGHT);
 			greyImage.normalize_i();
 			//final Matrix daydream = rbm.daydream(1, Integer.parseInt(cyclesInput.getText()), stochasticIntermediate.isSelected(), stochasticFinal.isSelected());
@@ -290,14 +287,18 @@ public class Main extends Application {
 	}
 
 	public void mnistDemo(Stage stage) {
+		final int HIDDEN_SIZE = 400;
+		final int GIBBS_SAMPLES = 2;
+		Random random = new Random();
+
 		// Load training data
 		Matrix data = loadMNIST("train-images-idx3-ubyte");
 
 		// Build RBM for learning
-		RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(28*28, 8*8);
-		RBMTrainer rbmTrainer = new RBMTrainer();
-		rbmTrainer.batchSize = 20; // 5x20
-		rbmTrainer.learningRate = 0.01;
+		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(28*28, HIDDEN_SIZE);
+		final RBMTrainer rbmTrainer = new RBMTrainer();
+		rbmTrainer.batchSize = 10; // 5x20
+		rbmTrainer.learningRate = 0.1;
 		rbmTrainer.maxIterations = 10;
 
 		/*
@@ -309,7 +310,29 @@ public class Main extends Application {
 		// Remove mean
 		Matrix examples = mfn.predict(data);
 		*/
-		Matrix examples = data;
+		final Matrix examples = data;
+
+		// Spawn a separate training thread.
+		Thread trainerThread = new Thread(() -> {
+			while(true) {
+				synchronized (rbm) {
+					rbmTrainer.train(rbm, examples, null, null);
+				}
+				// Stop if interrupted.
+				if(Thread.currentThread().isInterrupted()) {
+					return;
+				}
+				// Yield to give someone else a chance to run.
+				try {
+					System.out.println("Training error:" + rbmTrainer.lastError);
+					Thread.sleep(10);
+				} catch(InterruptedException ie) {
+					// If interrupted, abort.
+					return;
+				}
+			}
+		});
+		trainerThread.start();
 
 		// Set up UI
 		stage.setTitle("Aij Test UI");
@@ -317,7 +340,9 @@ public class Main extends Application {
 		pane.setAlignment(Pos.CENTER);
 		Scene scene = new Scene(pane, WIDTH, HEIGHT);
 		ImageView imageView = new ImageView(visualizeRBM(rbm, null, true));
-		pane.getChildren().add(imageView);
+		ImageView exampleView = new ImageView(ImageTools.MatrixToFXImage(Matrix.random(28, 28), true));
+		pane.add(imageView, 0, 0);
+		pane.add(exampleView, 1, 0);
 		//pane.add(imageView);
 		stage.setScene(scene);
 		stage.show();
@@ -325,22 +350,37 @@ public class Main extends Application {
 		// Repeated draw.
 		Timeline timeline = new Timeline();
 		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.1), new EventHandler<ActionEvent>() {
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
-				System.out.println("Training...");
-				rbmTrainer.train(rbm, examples, null, null);
-				//rbmTrainer.train(edgeDetector, data, null, null);
-				System.out.println("Trained.  Drawing...");
-				Image img = visualizeRBM(rbm, null, true);
-				imageView.setImage(img);
-				System.out.println("Error: " + rbmTrainer.lastError);
+				if(stage.isFocused()) {
+					synchronized (rbm) {
+						// Draw RBM
+						//rbmTrainer.train(edgeDetector, data, null, null);
+						System.out.println("Trained.  Drawing...");
+						Image img = visualizeRBM(rbm, null, true);
+						imageView.setImage(img);
+
+						// Render an example
+						final Matrix input = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE).elementOp_i(v -> v > random.nextDouble() ? 1.0 : 0.0));
+						Matrix ex = rbm.daydream(input, GIBBS_SAMPLES);
+
+						exampleView.setImage(ImageTools.MatrixToFXImage(ex.reshape_i(28, 28), true));
+
+						System.out.println("Error: " + rbmTrainer.lastError);
+						if(rbmTrainer.lastError < 10) {
+							rbmTrainer.gibbsSamples = 1+random.nextInt(10);
+							System.out.println("Bumping trainer to " + rbmTrainer.gibbsSamples + " samples.");
+						}
+					}
+				}
 			}
 		}));
 		timeline.playFromStart();
 
 		stage.setOnCloseRequest((WindowEvent w) -> {
 			timeline.stop();
+			trainerThread.interrupt();
 		});
 	}
 
@@ -572,7 +612,7 @@ public class Main extends Application {
 	}
 
 	public Matrix loadMNIST(final String filename) {
-		int numImages = 1000;
+		int numImages = 50000;
 		int imgWidth = -1;
 		int imgHeight = -1;
 		Matrix trainingData = null;

@@ -18,7 +18,7 @@ public class RBMTrainer implements Trainer {
 	public double learningRate = 0.1;
 	public double momentum = 0.0;
 	public double lastError = Double.MAX_VALUE;
-	//public int gibbsSamples = 1; // 'k' in literature.  1 is almost always ideal.
+	public int gibbsSamples = 1; // 'k' in literature.  1 is almost always ideal.
 
 	private void log(String msg) {
 		System.out.println(msg);
@@ -28,7 +28,7 @@ public class RBMTrainer implements Trainer {
 		RestrictedBoltzmannMachine rbm = (RestrictedBoltzmannMachine)net; // We only train neural networks.
 		final Matrix weights = rbm.getWeights(0);
 		final Matrix visibleBias = rbm.getVisibleBias();
-		//final Matrix hiddenBias = rbm.getHiddenBias();
+		final Matrix hiddenBias = rbm.getHiddenBias();
 		int[] sampleIndices = new int[batchSize];
 
 		for(int i=0; i < maxIterations && lastError > earlyStopError; i++) {
@@ -38,30 +38,44 @@ public class RBMTrainer implements Trainer {
 				sampleIndices[j] = random.nextInt(inputs.numRows());
 			}
 
-			final Matrix x = inputs.getRows(sampleIndices).add(visibleBias.repmat(batchSize, 1));
+			final Matrix batch = inputs.getRows(sampleIndices);
+			Matrix positiveHiddenActivations = null;
+			Matrix positiveHiddenProbabilities = null;
+			Matrix positiveHiddenStates = null;
+			Matrix positiveProduct = null;
+			Matrix negativeVisibleActivities = null;
+			Matrix negativeVisibleProbabilities = null;
+			Matrix negativeHiddenActivities = null;
+			Matrix negativeHiddenProbabilities = null;
+			Matrix negativeProduct = null;
+			Matrix x = batch;
 
-			// Positive CD phase.
-			final Matrix positiveHiddenActivations = x.multiply(weights);
-			final Matrix positiveHiddenProbabilities = positiveHiddenActivations.sigmoid(); // Tried introducing bias here in both places (before/after sigmoid).  Didn't work.
-			final Matrix positiveHiddenStates = positiveHiddenProbabilities.elementOp( // Also tried wrapping this with hidden bias.
-				v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
+			for(int k=0; k < gibbsSamples; k++) {
+				// Positive CD phase.
+				positiveHiddenActivations = hiddenBias.repmat(batchSize, 1).add(x.add(visibleBias.repmat(batchSize, 1)).multiply(weights));
+				positiveHiddenProbabilities = positiveHiddenActivations.sigmoid(); // Tried introducing bias here in both places (before/after sigmoid).  Didn't work.
+				positiveHiddenStates = positiveHiddenProbabilities.elementOp( // Also tried wrapping this with hidden bias.
+						v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
 
-			final Matrix positiveProduct = x.transpose().multiply(positiveHiddenProbabilities);
+				positiveProduct = x.transpose().multiply(positiveHiddenProbabilities);
 
-			// Negative CD phase.
-			// Reconstruct the visible units and sample again from the hidden units.
-			final Matrix negativeVisibleActivities = positiveHiddenStates.multiply(weights.transpose());
-			final Matrix negativeVisibleProbabilities = negativeVisibleActivities.sigmoid();
-			final Matrix negativeHiddenActivities = negativeVisibleProbabilities.multiply(weights);
-			final Matrix negativeHiddenProbabilities = negativeHiddenActivities.sigmoid();
+				// Negative CD phase.
+				// Reconstruct the visible units and sample again from the hidden units.
+				negativeVisibleActivities = positiveHiddenStates.multiply(weights.transpose());
+				negativeVisibleProbabilities = negativeVisibleActivities.sigmoid();
+				negativeHiddenActivities = negativeVisibleProbabilities.multiply(weights);
+				negativeHiddenProbabilities = negativeHiddenActivities.sigmoid();
 
-			final Matrix negativeProduct = negativeVisibleProbabilities.transpose().multiply(negativeHiddenProbabilities);
+				negativeProduct = negativeVisibleProbabilities.transpose().multiply(negativeHiddenProbabilities);
+
+				x = negativeVisibleProbabilities;
+			}
 
 			// Update weights.
 			weights.add_i(positiveProduct.subtract(negativeProduct).elementMultiply(learningRate / (float) batchSize));
-			visibleBias.subtract_i(x.subtract(negativeVisibleProbabilities).meanRow().elementMultiply(learningRate));
+			//visibleBias.subtract_i(batch.subtract(negativeVisibleProbabilities).meanRow().elementMultiply(learningRate));
 			//hiddenBias.subtract_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
-			lastError = x.subtract(negativeVisibleProbabilities).elementOp_i(v -> v*v).sum()/(float)batchSize;
+			lastError = batch.subtract(negativeVisibleProbabilities).elementOp_i(v -> v*v).sum()/(float)batchSize;
 
 			if(notification != null && notificationIncrement > 0 && (i+1)%notificationIncrement == 0) {
 				notification.run();

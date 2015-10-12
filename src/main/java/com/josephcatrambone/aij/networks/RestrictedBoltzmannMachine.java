@@ -29,8 +29,9 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	@Override
 	public Matrix predict(Matrix input) {
 		final Matrix biasedInput = visibleBias.repmat(input.numRows(), 1).add(input);
-		final Matrix activities = biasedInput.multiply(weights);
-		activities.elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
+		final Matrix activities = hiddenBias.repmat(input.numRows(), 1).add(biasedInput.multiply(weights));
+		final Matrix activations = activities.sigmoid();
+		activations.elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
 		return hiddenBias.repmat(input.numRows(), 1).add(activities);
 	}
 
@@ -91,16 +92,18 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	}
 
 	public Matrix daydream(int numSamples, int numCycles) {
-		return daydream(numSamples, numCycles, true, true);
+		Matrix input = Matrix.random(numSamples, getNumInputs());
+		return daydream(input, numCycles);
 	}
 
-	public Matrix daydream(int numSamples, int numCycles, boolean binaryIntermediate, boolean binaryTerminal) {
+	public Matrix daydream(Matrix input, int numCycles) {
+		Matrix accumulator = Matrix.zeros(input.numRows(), input.numColumns());
 		// Do numCycles gibbs samples to produce numSample sampels.
-		Matrix input = Matrix.random(numSamples, getNumInputs());
 		for(int i=0; i < numCycles; i++) {
-			input = reconstruct(predict(input), binaryIntermediate);
+			input = reconstruct(predict(input), false);
+			accumulator.add_i(input);
 		}
 
-		return reconstruct(predict(input), binaryTerminal);
+		return accumulator.elementMultiply_i(1.0 / numCycles);
 	}
 }
