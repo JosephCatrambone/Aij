@@ -52,7 +52,7 @@ public class RBMTrainer implements Trainer {
 
 			for(int k=0; k < gibbsSamples; k++) {
 				// Positive CD phase.
-				positiveHiddenActivations = hiddenBias.repmat(batchSize, 1).add(x.add(visibleBias.repmat(batchSize, 1)).multiply(weights));
+				positiveHiddenActivations = x.multiply(weights);
 				positiveHiddenProbabilities = positiveHiddenActivations.sigmoid(); // Tried introducing bias here in both places (before/after sigmoid).  Didn't work.
 				positiveHiddenStates = positiveHiddenProbabilities.elementOp( // Also tried wrapping this with hidden bias.
 					v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
@@ -64,7 +64,7 @@ public class RBMTrainer implements Trainer {
 				negativeVisibleActivities = positiveHiddenStates.multiply(weights.transpose());
 				negativeVisibleProbabilities = negativeVisibleActivities.sigmoid();
 				negativeHiddenActivities = negativeVisibleProbabilities.multiply(weights);
-				negativeHiddenProbabilities = negativeHiddenActivities.sigmoid();
+				negativeHiddenProbabilities = hiddenBias.repmat(batchSize, 1).add(negativeHiddenActivities).sigmoid();
 
 				negativeProduct = negativeVisibleProbabilities.transpose().multiply(negativeHiddenProbabilities);
 
@@ -73,8 +73,8 @@ public class RBMTrainer implements Trainer {
 
 			// Update weights.
 			weights.add_i(positiveProduct.subtract(negativeProduct).elementMultiply(learningRate / (float) batchSize));
-			//visibleBias.subtract_i(batch.subtract(negativeVisibleProbabilities).meanRow().elementMultiply(learningRate));
-			//hiddenBias.subtract_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
+			//visibleBias.add_i(batch.subtract(negativeVisibleProbabilities).meanRow().elementMultiply(learningRate));
+			//hiddenBias.add_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
 			lastError = batch.subtract(negativeVisibleProbabilities).elementOp_i(v -> v*v).sum()/(float)batchSize;
 
 			if(notification != null && notificationIncrement > 0 && (i+1)%notificationIncrement == 0) {
