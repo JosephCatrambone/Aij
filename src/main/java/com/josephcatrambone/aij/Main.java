@@ -69,7 +69,7 @@ public class Main extends Application {
 			while((line = fin.readLine()) != null) {
 				sb.append(line + "\n");
 			}
-			Matrix weights = NetworkIOTools.StringToWeights(sb.toString()); //NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
+			Matrix weights = NetworkIOTools.StringToMatrix(sb.toString()); //NetworkIOTools.LoadNetworkFromDisk(POKEMON_RBM);
 			//temp = new RestrictedBoltzmannMachine(weights.numRows(), weights.numColumns());
 			//temp.setWeights(0, weights);
 		} catch(IOException ioe) {}
@@ -113,7 +113,7 @@ public class Main extends Application {
 			// Save
 			LOGGER.info("Saving network to file " + POKEMON_RBM);
 			try(BufferedWriter fout = new BufferedWriter(new FileWriter(POKEMON_RBM))) {
-				fout.write(NetworkIOTools.WeightsToString(rbm.getWeights(0)));
+				fout.write(NetworkIOTools.MatrixToString(rbm.getWeights(0)));
 				fout.close();
 			} catch(IOException ioe) {
 				System.err.println("Error writing network to disk: " + ioe);
@@ -288,7 +288,7 @@ public class Main extends Application {
 
 	public void mnistDemo(Stage stage) {
 		final int HIDDEN_SIZE = 400;
-		final int GIBBS_SAMPLES = 2;
+		final int GIBBS_SAMPLES = 1;
 		Random random = new Random();
 
 		// Load training data
@@ -299,7 +299,8 @@ public class Main extends Application {
 		final RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10; // 5x20
 		rbmTrainer.learningRate = 0.1;
-		rbmTrainer.maxIterations = 10;
+		rbmTrainer.maxIterations = 100;
+		rbmTrainer.gibbsSamples = 1;
 
 		/*
 		// Make mean filter
@@ -314,10 +315,31 @@ public class Main extends Application {
 
 		// Spawn a separate training thread.
 		Thread trainerThread = new Thread(() -> {
+			int cycles = 0;
 			while(true) {
 				synchronized (rbm) {
 					rbmTrainer.train(rbm, examples, null, null);
 				}
+				// Change training params.
+				if(cycles++ > 100) {
+					try(BufferedWriter fout = new BufferedWriter(new FileWriter(new File("rbm.txt")))) {
+						fout.write("visible_bias ");
+						fout.write(NetworkIOTools.MatrixToString(rbm.getVisibleBias()));
+						fout.write("\n");
+						fout.write("hidden_bias");
+						fout.write(NetworkIOTools.MatrixToString(rbm.getHiddenBias()));
+						fout.write("\n");
+						fout.write("weights ");
+						fout.write(NetworkIOTools.MatrixToString(rbm.getWeights(0)));
+					} catch(IOException ioe) {
+
+					}
+					rbmTrainer.gibbsSamples += 1;
+					rbmTrainer.learningRate *= 0.8;
+					System.out.println("Bumping steps to " + rbmTrainer.gibbsSamples);
+					cycles = 0;
+				}
+
 				// Stop if interrupted.
 				if(Thread.currentThread().isInterrupted()) {
 					return;
@@ -325,7 +347,7 @@ public class Main extends Application {
 				// Yield to give someone else a chance to run.
 				try {
 					System.out.println("Training error:" + rbmTrainer.lastError);
-					Thread.sleep(10);
+					Thread.sleep(1);
 				} catch(InterruptedException ie) {
 					// If interrupted, abort.
 					return;
@@ -353,26 +375,22 @@ public class Main extends Application {
 		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), new EventHandler<ActionEvent>() {
 			@Override
 			public void handle(ActionEvent event) {
-				if(stage.isFocused()) {
-					synchronized (rbm) {
-						// Draw RBM
-						//rbmTrainer.train(edgeDetector, data, null, null);
-						System.out.println("Trained.  Drawing...");
-						Image img = visualizeRBM(rbm, null, true);
-						imageView.setImage(img);
+				if (stage.isFocused()) {
+					//synchronized (rbm) {
+					// Draw RBM
+					//rbmTrainer.train(edgeDetector, data, null, null);
+					System.out.println("Trained.  Drawing...");
+					Image img = visualizeRBM(rbm, null, true);
+					imageView.setImage(img);
 
-						// Render an example
-						final Matrix input = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE).elementOp_i(v -> v > random.nextDouble() ? 1.0 : 0.0));
-						Matrix ex = rbm.daydream(input, GIBBS_SAMPLES);
+					// Render an example
+					final Matrix input = Matrix.random(1, 28 * 28);
+					Matrix ex = rbm.daydream(input, GIBBS_SAMPLES);
 
-						exampleView.setImage(ImageTools.MatrixToFXImage(ex.reshape_i(28, 28), true));
+					exampleView.setImage(ImageTools.MatrixToFXImage(ex.reshape_i(28, 28), true));
 
-						System.out.println("Error: " + rbmTrainer.lastError);
-						if(rbmTrainer.lastError < 10) {
-							rbmTrainer.gibbsSamples = 1+random.nextInt(10);
-							System.out.println("Bumping trainer to " + rbmTrainer.gibbsSamples + " samples.");
-						}
-					}
+					System.out.println("Error: " + rbmTrainer.lastError);
+					//}
 				}
 			}
 		}));

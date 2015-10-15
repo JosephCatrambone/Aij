@@ -35,11 +35,11 @@ public class NetworkIOTools {
 		return net;
 	}
 
-	public static String WeightsToString(Matrix weights) {
+	public static String MatrixToString(Matrix weights) {
 		StringBuilder result = new StringBuilder();
-		result.append("rows " + weights.numRows() + "\n");
-		result.append("columns " + weights.numColumns() + "\n");
-		result.append("weights ");
+		result.append("rows " + weights.numRows() + " ");
+		result.append("columns " + weights.numColumns() + " ");
+		result.append("matrix ");
 		for (int j = 0; j < weights.numRows(); j++) {
 			for (int k = 0; k < weights.numColumns(); k++) {
 				result.append(weights.get(j, k));
@@ -58,7 +58,7 @@ public class NetworkIOTools {
 		}
 	}
 
-	public static Matrix StringToWeights(String string) {
+	public static Matrix StringToMatrix(String string) {
 		Scanner scanner = new Scanner(string);
 
 		// Instance the network.
@@ -67,7 +67,7 @@ public class NetworkIOTools {
 		int inputs = scanner.nextInt();
 		expectString(scanner, "columns");
 		int outputs = scanner.nextInt();
-		expectString(scanner, "weights");
+		expectString(scanner, "matrix");
 		Matrix weights = new Matrix(inputs, outputs);
 		for (int j = 0; j < inputs; j++) {
 			for (int k = 0; k < outputs; k++) {

@@ -55,7 +55,7 @@ public class RBMTrainer implements Trainer {
 				positiveHiddenActivations = hiddenBias.repmat(batchSize, 1).add(x.add(visibleBias.repmat(batchSize, 1)).multiply(weights));
 				positiveHiddenProbabilities = positiveHiddenActivations.sigmoid(); // Tried introducing bias here in both places (before/after sigmoid).  Didn't work.
 				positiveHiddenStates = positiveHiddenProbabilities.elementOp( // Also tried wrapping this with hidden bias.
-						v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
+					v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
 
 				positiveProduct = x.transpose().multiply(positiveHiddenProbabilities);
 

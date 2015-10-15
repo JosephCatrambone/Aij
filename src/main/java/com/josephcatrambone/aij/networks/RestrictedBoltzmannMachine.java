@@ -97,13 +97,11 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 	}
 
 	public Matrix daydream(Matrix input, int numCycles) {
-		Matrix accumulator = Matrix.zeros(input.numRows(), input.numColumns());
 		// Do numCycles gibbs samples to produce numSample sampels.
 		for(int i=0; i < numCycles; i++) {
 			input = reconstruct(predict(input), false);
-			accumulator.add_i(input);
 		}
 
-		return accumulator.elementMultiply_i(1.0 / numCycles);
+		return input;
 	}
 }
