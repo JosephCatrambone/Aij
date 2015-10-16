@@ -298,7 +298,7 @@ public class Main extends Application {
 		final RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10; // 5x20
 		rbmTrainer.learningRate = 0.1;
-		rbmTrainer.maxIterations = 100;
+		rbmTrainer.maxIterations = 10;
 		rbmTrainer.gibbsSamples = 1;
 
 		/*
@@ -320,7 +320,7 @@ public class Main extends Application {
 					rbmTrainer.train(rbm, examples, null, null);
 				//}
 				// Change training params.
-				if(cycles++ > 100) {
+				if(cycles++ > 5000) {
 					try(BufferedWriter fout = new BufferedWriter(new FileWriter(new File("rbm.txt")))) {
 						fout.write("visible_bias ");
 						fout.write(NetworkIOTools.MatrixToString(rbm.getVisibleBias()));
@@ -383,10 +383,11 @@ public class Main extends Application {
 
 					// Render an example
 					final Matrix input = Matrix.random(1, 28 * 28);
-					Matrix ex = rbm.daydream(input, random.nextInt(10));
+					int iters = random.nextInt(5)+1;
+					Matrix ex = rbm.daydream(input, iters);
 
 					exampleView.setImage(ImageTools.MatrixToFXImage(ex.reshape_i(28, 28), true));
-					System.out.println("# Done drawing.");
+					System.out.println("# Done drawing image with " + iters + " iterations.");
 				} else {
 					System.out.println("# Stage not visible or busy.  Skipping redraw.");
 				}

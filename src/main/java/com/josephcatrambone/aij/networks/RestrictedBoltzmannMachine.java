@@ -102,9 +102,10 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 
 	public Matrix daydream(Matrix input, int numCycles) {
 		// Do numCycles gibbs samples to produce numSample sampels.
-		for(int i=0; i < numCycles; i++) {
-			input = reconstruct(predict(input), false, false);
+		for(int i=0; i < numCycles-1; i++) {
+			input = reconstruct(predict(input), true, true);
 		}
+		input = reconstruct(predict(input), false, false);
 
 		return input;
 	}
