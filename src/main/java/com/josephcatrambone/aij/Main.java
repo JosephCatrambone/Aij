@@ -288,7 +288,6 @@ public class Main extends Application {
 
 	public void mnistDemo(Stage stage) {
 		final int HIDDEN_SIZE = 400;
-		final int GIBBS_SAMPLES = 1;
 		Random random = new Random();
 
 		// Load training data
@@ -317,16 +316,16 @@ public class Main extends Application {
 		Thread trainerThread = new Thread(() -> {
 			int cycles = 0;
 			while(true) {
-				synchronized (rbm) {
+				//synchronized (rbm) {
 					rbmTrainer.train(rbm, examples, null, null);
-				}
+				//}
 				// Change training params.
 				if(cycles++ > 100) {
 					try(BufferedWriter fout = new BufferedWriter(new FileWriter(new File("rbm.txt")))) {
 						fout.write("visible_bias ");
 						fout.write(NetworkIOTools.MatrixToString(rbm.getVisibleBias()));
 						fout.write("\n");
-						fout.write("hidden_bias");
+						fout.write("hidden_bias ");
 						fout.write(NetworkIOTools.MatrixToString(rbm.getHiddenBias()));
 						fout.write("\n");
 						fout.write("weights ");
@@ -335,8 +334,7 @@ public class Main extends Application {
 
 					}
 					rbmTrainer.gibbsSamples += 1;
-					rbmTrainer.learningRate *= 0.8;
-					System.out.println("Bumping steps to " + rbmTrainer.gibbsSamples);
+					rbmTrainer.learningRate *= 0.9;
 					cycles = 0;
 				}
 
@@ -346,8 +344,8 @@ public class Main extends Application {
 				}
 				// Yield to give someone else a chance to run.
 				try {
-					System.out.println("Training error:" + rbmTrainer.lastError);
-					Thread.sleep(1);
+					System.out.println(System.currentTimeMillis() + "|" + cycles + "|" + rbmTrainer.gibbsSamples + "|" + rbmTrainer.lastError);
+					Thread.sleep(0);
 				} catch(InterruptedException ie) {
 					// If interrupted, abort.
 					return;
@@ -372,25 +370,25 @@ public class Main extends Application {
 		// Repeated draw.
 		Timeline timeline = new Timeline();
 		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1.0), new EventHandler<ActionEvent>() {
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(2.0), new EventHandler<ActionEvent>() {
+			Boolean redrawing = false;
 			@Override
 			public void handle(ActionEvent event) {
-				if (stage.isFocused()) {
-					//synchronized (rbm) {
+				if(stage.isFocused() && stage.isShowing()) {
 					// Draw RBM
 					//rbmTrainer.train(edgeDetector, data, null, null);
-					System.out.println("Trained.  Drawing...");
+					System.out.println("# Drawing...");
 					Image img = visualizeRBM(rbm, null, true);
 					imageView.setImage(img);
 
 					// Render an example
 					final Matrix input = Matrix.random(1, 28 * 28);
-					Matrix ex = rbm.daydream(input, GIBBS_SAMPLES);
+					Matrix ex = rbm.daydream(input, random.nextInt(10));
 
 					exampleView.setImage(ImageTools.MatrixToFXImage(ex.reshape_i(28, 28), true));
-
-					System.out.println("Error: " + rbmTrainer.lastError);
-					//}
+					System.out.println("# Done drawing.");
+				} else {
+					System.out.println("# Stage not visible or busy.  Skipping redraw.");
 				}
 			}
 		}));
@@ -606,7 +604,7 @@ public class Main extends Application {
 			// Set one item hot and reconstruct
 			Matrix stim = new Matrix(1, outputNeurons);
 			stim.set(0, i, 1.0);
-			Matrix reconstruction = rbm.reconstruct(stim, false);
+			Matrix reconstruction = rbm.reconstruct(stim);
 
 			if(mean != null) {
 				reconstruction = mean.reconstruct(reconstruction);
