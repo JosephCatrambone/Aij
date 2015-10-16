@@ -605,7 +605,7 @@ public class Main extends Application {
 			// Set one item hot and reconstruct
 			Matrix stim = new Matrix(1, outputNeurons);
 			stim.set(0, i, 1.0);
-			Matrix reconstruction = rbm.reconstruct(stim);
+			Matrix reconstruction = rbm.reconstruct(stim, false, false);
 
 			if(mean != null) {
 				reconstruction = mean.reconstruct(reconstruction);
