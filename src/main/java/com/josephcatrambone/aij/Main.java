@@ -297,7 +297,7 @@ public class Main extends Application {
 		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(28*28, HIDDEN_SIZE);
 		final RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10; // 5x20
-		rbmTrainer.learningRate = 0.1;
+		rbmTrainer.learningRate = 0.01;
 		rbmTrainer.maxIterations = 10;
 		rbmTrainer.gibbsSamples = 1;
 
@@ -383,7 +383,7 @@ public class Main extends Application {
 
 					// Render an example
 					final Matrix input = Matrix.random(1, 28 * 28);
-					int iters = random.nextInt(5)+1;
+					int iters = random.nextInt(3);
 					Matrix ex = rbm.daydream(input, iters);
 
 					exampleView.setImage(ImageTools.MatrixToFXImage(ex.reshape_i(28, 28), true));

@@ -51,9 +51,12 @@ public class RBMTrainer implements Trainer {
 			Matrix x = batch;
 
 			for(int k=0; k < gibbsSamples; k++) {
+				//final Matrix vBiasBlock = visibleBias.repmat(batchSize, 1);
+				final Matrix hBiasBlock = hiddenBias.repmat(batchSize, 1);
+
 				// Positive CD phase.
 				positiveHiddenActivations = x.multiply(weights);
-				positiveHiddenProbabilities = positiveHiddenActivations.sigmoid();
+				positiveHiddenProbabilities = hBiasBlock.add(positiveHiddenActivations).sigmoid();
 				positiveHiddenStates = positiveHiddenProbabilities.elementOp(
 					v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
 
@@ -64,7 +67,7 @@ public class RBMTrainer implements Trainer {
 				negativeVisibleActivities = positiveHiddenStates.multiply(weights.transpose());
 				negativeVisibleProbabilities = negativeVisibleActivities.sigmoid();
 				negativeHiddenActivities = negativeVisibleProbabilities.multiply(weights);
-				negativeHiddenProbabilities = negativeHiddenActivities.sigmoid();
+				negativeHiddenProbabilities = hBiasBlock.add(negativeHiddenActivities).sigmoid();
 
 				negativeProduct = negativeVisibleProbabilities.transpose().multiply(negativeHiddenProbabilities);
 
@@ -74,7 +77,7 @@ public class RBMTrainer implements Trainer {
 			// Update weights.
 			weights.add_i(positiveProduct.subtract(negativeProduct).elementMultiply(learningRate / (float) batchSize));
 			//visibleBias.add_i(batch.subtract(negativeVisibleProbabilities).meanRow().elementMultiply(learningRate));
-			//hiddenBias.add_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
+			hiddenBias.add_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
 			lastError = batch.subtract(negativeVisibleProbabilities).elementOp_i(v -> v*v).sum()/(float)batchSize;
 
 			if(notification != null && notificationIncrement > 0 && (i+1)%notificationIncrement == 0) {
