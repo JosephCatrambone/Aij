@@ -297,9 +297,26 @@ public class Main extends Application {
 		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(28*28, HIDDEN_SIZE);
 		final RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10; // 5x20
-		rbmTrainer.learningRate = 0.01;
+		rbmTrainer.learningRate = 0.1;
 		rbmTrainer.maxIterations = 10;
 		rbmTrainer.gibbsSamples = 1;
+
+		// Try loading the network.
+		try(BufferedReader fin = new BufferedReader(new FileReader("rbm.txt"))) {
+			Scanner scanner = new Scanner(fin);
+			scanner.nextLine();
+			String vbString = scanner.nextLine();
+			scanner.nextLine();
+			String hbString = scanner.nextLine();
+			scanner.nextLine();
+			String wString = scanner.nextLine();
+			rbm.setVisibleBias(NetworkIOTools.StringToMatrix(vbString));
+			rbm.setHiddenBias(NetworkIOTools.StringToMatrix(hbString));
+			rbm.setWeights(0, NetworkIOTools.StringToMatrix(wString));
+			System.out.println("Loaded RBM.");
+		} catch(IOException ioe) {
+			// Do nothing.
+		}
 
 		/*
 		// Make mean filter
@@ -320,21 +337,19 @@ public class Main extends Application {
 					rbmTrainer.train(rbm, examples, null, null);
 				//}
 				// Change training params.
-				if(cycles++ > 5000) {
-					try(BufferedWriter fout = new BufferedWriter(new FileWriter(new File("rbm.txt")))) {
-						fout.write("visible_bias ");
+				if(cycles++ > 1000) {
+					try(BufferedWriter fout = new BufferedWriter(new FileWriter("rbm.txt"))) {
+						fout.write("visible_bias\n");
 						fout.write(NetworkIOTools.MatrixToString(rbm.getVisibleBias()));
-						fout.write("\n");
-						fout.write("hidden_bias ");
+						fout.write("hidden_bias\n");
 						fout.write(NetworkIOTools.MatrixToString(rbm.getHiddenBias()));
-						fout.write("\n");
-						fout.write("weights ");
+						fout.write("weights\n");
 						fout.write(NetworkIOTools.MatrixToString(rbm.getWeights(0)));
-					} catch(IOException ioe) {
+					} catch (IOException ioe) {
 
 					}
-					rbmTrainer.gibbsSamples += 1;
-					rbmTrainer.learningRate *= 0.9;
+					//rbmTrainer.gibbsSamples += 1;
+					//rbmTrainer.learningRate *= 0.9;
 					cycles = 0;
 				}
 
@@ -370,24 +385,27 @@ public class Main extends Application {
 		// Repeated draw.
 		Timeline timeline = new Timeline();
 		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(2.0), new EventHandler<ActionEvent>() {
-			Boolean redrawing = false;
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.1), new EventHandler<ActionEvent>() {
+			int iteration = 0;
+			Matrix input = null;
 			@Override
 			public void handle(ActionEvent event) {
 				if(stage.isFocused() && stage.isShowing()) {
-					// Draw RBM
-					//rbmTrainer.train(edgeDetector, data, null, null);
-					System.out.println("# Drawing...");
-					Image img = visualizeRBM(rbm, null, true);
-					imageView.setImage(img);
+					if(iteration % 100 == 0) {
+						// Draw RBM
+						//rbmTrainer.train(edgeDetector, data, null, null);
+						System.out.println("# Drawing...");
+						Image img = visualizeRBM(rbm, null, true);
+						imageView.setImage(img);
 
-					// Render an example
-					final Matrix input = Matrix.random(1, 28 * 28);
-					int iters = random.nextInt(3);
-					Matrix ex = rbm.daydream(input, iters);
-
+						// Render a new example
+						//input = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE));
+						input = Matrix.random(1, 28*28).add_i(1.0).elementMultiply_i(0.5);
+					}
+					input = rbm.daydream(input, 1);
+					Matrix ex = input.clone();
 					exampleView.setImage(ImageTools.MatrixToFXImage(ex.reshape_i(28, 28), true));
-					System.out.println("# Done drawing image with " + iters + " iterations.");
+					iteration++;
 				} else {
 					System.out.println("# Stage not visible or busy.  Skipping redraw.");
 				}
@@ -598,27 +616,22 @@ public class Main extends Application {
 		WritableImage output = new WritableImage(imgWidth, imgWidth);
 		PixelWriter pw = output.getPixelWriter();
 
+		Matrix weights = rbm.getWeights(0).clone();
+		//Matrix vBias = rbm.getVisibleBias().clone();
+		//Matrix hBias = rbm.getHiddenBias().clone();
+
+		// Normalize data if needed
+		if(normalizeIntensity) {
+			weights.normalize_i();
+		}
+
 		for(int i=0; i < outputNeurons; i++) {
 			int subImgOffsetX = subImgWidth*(i%xSampleCount);
 			int subImgOffsetY = subImgWidth*(i/xSampleCount);
 
-			// Set one item hot and reconstruct
-			Matrix stim = new Matrix(1, outputNeurons);
-			stim.set(0, i, 1.0);
-			Matrix reconstruction = rbm.reconstruct(stim, false, false);
-
-			if(mean != null) {
-				reconstruction = mean.reconstruct(reconstruction);
-			}
-
-			// Normalize data if needed
-			if(normalizeIntensity) {
-				reconstruction.normalize_i();
-			}
-
 			// Rebuild and draw input to image
-			for(int j=0; j < reconstruction.numColumns(); j++) {
-				double val = reconstruction.get(0, j);
+			for(int j=0; j < weights.numRows(); j++) {
+				double val = weights.get(j, i);
 				if(val < 0) { val = 0; }
 				if(val > 1) { val = 1; }
 				pw.setColor(subImgOffsetX + (j%subImgWidth), subImgOffsetY + (j/subImgWidth), Color.gray(val));
