@@ -31,7 +31,7 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 		final Matrix activities = input.multiply(weights);
 		final Matrix activations = hiddenBias.repmat(input.numRows(), 1).add(activities).sigmoid();
 		activations.elementOp_i(v -> v > random.nextDouble() ? ACTIVE_STATE : INACTIVE_STATE);
-		return hiddenBias.repmat(input.numRows(), 1).add(activities);
+		return activations;
 	}
 
 	@Override
@@ -102,11 +102,21 @@ public class RestrictedBoltzmannMachine implements Network, Serializable {
 
 	public Matrix daydream(Matrix input, int numCycles) {
 		// Do numCycles gibbs samples to produce numSample sampels.
-		for(int i=0; i < numCycles-1; i++) {
+		for(int i=0; i < numCycles; i++) {
 			input = reconstruct(predict(input), true, true);
 		}
-		input = reconstruct(predict(input), false, false);
+		//input = reconstruct(predict(input), true, true);
 
 		return input;
+	}
+
+	public double getFreeEnergy() {
+		double accumulator = 0;
+		for(int i=0; i < visibleBias.numColumns(); i++) {
+			for(int j=0; j < hiddenBias.numColumns(); j++) {
+				accumulator += visibleBias.get(0, i) * hiddenBias.get(0, j) * weights.get(i, j);
+			}
+		}
+		return -accumulator;
 	}
 }
