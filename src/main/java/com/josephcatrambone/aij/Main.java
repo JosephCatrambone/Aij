@@ -399,8 +399,9 @@ public class Main extends Application {
 						imageView.setImage(img);
 
 						// Render a new example
-						//input = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE));
-						input = Matrix.random(1, 28*28).add_i(1.0).elementMultiply_i(0.5);
+						input = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE));
+						// This method always seems to go to zero.
+						//input = Matrix.random(1, 28*28).add_i(1.0).elementMultiply_i(0.5);
 					}
 					input = rbm.daydream(input, 1);
 					Matrix ex = input.clone();
@@ -622,7 +623,13 @@ public class Main extends Application {
 
 		// Normalize data if needed
 		if(normalizeIntensity) {
-			weights.normalize_i();
+			for(int j=0; j < weights.numColumns(); j++) {
+				Matrix col = weights.getColumn(j);
+				col.normalize_i();
+				for(int k=0; k < weights.numRows(); k++) {
+					weights.set(k, j, col.get(k, 0));
+				}
+			}
 		}
 
 		for(int i=0; i < outputNeurons; i++) {

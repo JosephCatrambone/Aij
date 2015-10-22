@@ -69,6 +69,8 @@ public class Matrix implements Serializable {
 		return new Matrix(m.getRow(row));
 	}
 
+	public Matrix getColumn(int column) { return new Matrix(m.getColumn(column)); }
+
 	public double[] getRowArray(int row) {
 		double[] output = new double[m.columns];
 		for(int i=0; i < output.length; i++) {
