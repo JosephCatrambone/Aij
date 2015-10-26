@@ -297,7 +297,7 @@ public class Main extends Application {
 		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(28*28, HIDDEN_SIZE);
 		final RBMTrainer rbmTrainer = new RBMTrainer();
 		rbmTrainer.batchSize = 10; // 5x20
-		rbmTrainer.learningRate = 0.1;
+		rbmTrainer.learningRate = 0.01;
 		rbmTrainer.maxIterations = 10;
 		rbmTrainer.gibbsSamples = 1;
 
@@ -385,13 +385,14 @@ public class Main extends Application {
 		// Repeated draw.
 		Timeline timeline = new Timeline();
 		timeline.setCycleCount(Timeline.INDEFINITE);
-		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.1), new EventHandler<ActionEvent>() {
+		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.2), new EventHandler<ActionEvent>() {
 			int iteration = 0;
 			Matrix input = null;
 			@Override
 			public void handle(ActionEvent event) {
 				if(stage.isFocused() && stage.isShowing()) {
 					if(iteration % 100 == 0) {
+						iteration = 0;
 						// Draw RBM
 						//rbmTrainer.train(edgeDetector, data, null, null);
 						System.out.println("# Drawing...");
@@ -406,10 +407,8 @@ public class Main extends Application {
 					input = rbm.daydream(input, 1);
 					Matrix ex = input.clone();
 					exampleView.setImage(ImageTools.MatrixToFXImage(ex.reshape_i(28, 28), true));
-					iteration++;
-				} else {
-					System.out.println("# Stage not visible or busy.  Skipping redraw.");
 				}
+				iteration++;
 			}
 		}));
 		timeline.playFromStart();

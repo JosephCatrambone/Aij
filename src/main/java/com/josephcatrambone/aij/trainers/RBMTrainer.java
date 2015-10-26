@@ -16,6 +16,8 @@ public class RBMTrainer implements Trainer {
 	public double earlyStopError = 0.0; // If error is less than this, stop early.
 	public int batchSize = 1;
 	public double learningRate = 0.1;
+	public double regularization = 0.001; // L2
+	public double dropout = 0.0;
 	public double momentum = 0.0;
 	public double lastError = Double.MAX_VALUE;
 	public int gibbsSamples = 1; // 'k' in literature.  1 is almost always ideal.
@@ -50,12 +52,12 @@ public class RBMTrainer implements Trainer {
 			Matrix negativeProduct = null;
 			Matrix x = batch;
 
-			for(int k=0; k < gibbsSamples; k++) {
-				final Matrix vBiasBlock = visibleBias.repmat(batchSize, 1);
-				final Matrix hBiasBlock = hiddenBias.repmat(batchSize, 1);
+			final Matrix vBiasBlock = visibleBias.repmat(batchSize, 1);
+			final Matrix hBiasBlock = hiddenBias.repmat(batchSize, 1);
 
+			for(int k=0; k < gibbsSamples; k++) {
 				// Positive CD phase.
-				positiveHiddenActivations = vBiasBlock.add(x).multiply(weights);
+				positiveHiddenActivations = x.multiply(weights);
 				positiveHiddenProbabilities = hBiasBlock.add(positiveHiddenActivations).sigmoid();
 				positiveHiddenStates = positiveHiddenProbabilities.elementOp(
 					v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
@@ -79,7 +81,7 @@ public class RBMTrainer implements Trainer {
 			// Update weights.
 			weights.add_i(positiveProduct.subtract(negativeProduct).elementMultiply(learningRate / (float) batchSize));
 			visibleBias.add_i(batch.subtract(negativeVisibleProbabilities).meanRow().elementMultiply(learningRate));
-			//hiddenBias.add_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
+			hiddenBias.add_i(positiveHiddenProbabilities.subtract(negativeHiddenProbabilities).meanRow().elementMultiply(learningRate));
 			lastError = batch.subtract(negativeVisibleProbabilities).elementOp_i(v -> v*v).sum()/(float)batchSize;
 
 			if(notification != null && notificationIncrement > 0 && (i+1)%notificationIncrement == 0) {
@@ -87,6 +89,11 @@ public class RBMTrainer implements Trainer {
 			}
 		}
 
+		final Matrix l1Delta = weights.elementMultiply(regularization);
+		weights.subtract_i(l1Delta);
+
 		rbm.setWeights(0, weights);
+		rbm.setVisibleBias(visibleBias);
+		rbm.setHiddenBias(hiddenBias);
 	}
 }
