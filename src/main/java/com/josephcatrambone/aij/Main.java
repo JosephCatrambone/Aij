@@ -337,7 +337,7 @@ public class Main extends Application {
 					rbmTrainer.train(rbm, examples, null, null);
 				//}
 				// Change training params.
-				if(cycles++ > 1000) {
+				if(cycles++ > 10000) {
 					try(BufferedWriter fout = new BufferedWriter(new FileWriter("rbm.txt"))) {
 						fout.write("visible_bias\n");
 						fout.write(NetworkIOTools.MatrixToString(rbm.getVisibleBias()));
@@ -348,8 +348,8 @@ public class Main extends Application {
 					} catch (IOException ioe) {
 
 					}
-					//rbmTrainer.gibbsSamples += 1;
-					//rbmTrainer.learningRate *= 0.9;
+					rbmTrainer.gibbsSamples += 1;
+					rbmTrainer.learningRate *= 0.9;
 					cycles = 0;
 				}
 
@@ -400,9 +400,9 @@ public class Main extends Application {
 						imageView.setImage(img);
 
 						// Render a new example
-						input = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE));
+						//input = rbm.reconstruct(Matrix.random(1, HIDDEN_SIZE));
 						// This method always seems to go to zero.
-						//input = Matrix.random(1, 28*28).add_i(1.0).elementMultiply_i(0.5);
+						input = Matrix.random(1, 28*28).add_i(1.0).elementMultiply_i(0.5);
 					}
 					input = rbm.daydream(input, 1);
 					Matrix ex = input.clone();

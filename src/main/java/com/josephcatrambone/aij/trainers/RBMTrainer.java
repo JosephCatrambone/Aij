@@ -60,9 +60,11 @@ public class RBMTrainer implements Trainer {
 				positiveHiddenActivations = x.multiply(weights);
 				positiveHiddenProbabilities = hBiasBlock.add(positiveHiddenActivations).sigmoid();
 				positiveHiddenStates = positiveHiddenProbabilities.elementOp(
-					v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
+						v -> v > random.nextDouble() ? RestrictedBoltzmannMachine.ACTIVE_STATE : RestrictedBoltzmannMachine.INACTIVE_STATE);
 
-				positiveProduct = x.transpose().multiply(positiveHiddenStates);
+				if(k == 0) {
+					positiveProduct = x.transpose().multiply(positiveHiddenStates);
+				}
 
 				// Negative CD phase.
 				// Reconstruct the visible units and sample again from the hidden units.
