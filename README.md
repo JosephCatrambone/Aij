@@ -18,13 +18,6 @@ Backprop Trainer -> Neural Network
 
 Convolutional Trainer -> Convnet
 
-## Layer
-
-You probably don't need to worry about layers, since the networks will take care of them most of the time.
-A layer is like a double[], insofar as it maintains activity.  It's different, however,
-because it maintains multiple activations, activities, and the derivatives of a propagation at the same time.
-A layer also contains (perhaps incorrectly) the bias term.
-
 # Example Use
 
 ```
