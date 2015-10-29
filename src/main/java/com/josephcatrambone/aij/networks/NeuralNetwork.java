@@ -12,8 +12,8 @@ public class NeuralNetwork implements Network, Serializable {
 	public static double WEIGHT_SCALE = 0.1;
 
 	private Matrix[] weights;
-	private UnaryOperator[] activationFunctions;
-	private UnaryOperator[] derivativeFromActivationFunctions; // Given c, where c = f(x), compute f^-1(x).
+	private UnaryOperator<Double>[] activationFunctions;
+	private UnaryOperator<Double>[] derivativeFromActivationFunctions; // Given c, where c = f(x), compute f^-1(x).
 	// For sigmoid = 1/(1 + e^(-x)) = f(x), dsigmoid(w) = w*(1-w) for w=f(x)
 	// This isn't the derivative from X, it's the derivative from the activation of X.
 	// DON'T SCREW THIS UP.  AGAIN.
@@ -26,6 +26,23 @@ public class NeuralNetwork implements Network, Serializable {
 		for(int i=0; i < weights.length; i++) {
 			weights[i] = Matrix.random(layerSizes[i], layerSizes[i + 1]);
 			weights[i].elementMultiply_i(WEIGHT_SCALE);
+			switch(activationFunctions[i]) { // Java 8 and higher support switch/case.
+				case "tanh":
+					this.activationFunctions[i] = v -> Math.tanh(v);
+					this.derivativeFromActivationFunctions[i] = v -> 1.0 - (v*v); // 1 - tanh^2. v = tanh()
+					break;
+				case "logistic":
+				case "sigmoid":
+					this.activationFunctions[i] = v -> 1.0/(1.0+Math.exp(-v));
+					this.derivativeFromActivationFunctions[i] = v -> v*(1.0-v);
+					break;
+				case "linear":
+					this.activationFunctions[i] = v -> v;
+					this.derivativeFromActivationFunctions[i] = v -> 1.0;
+					break;
+				default:
+					throw new IllegalArgumentException("Unrecognized activation function in NN: " + activationFunctions[i]);
+			}
 		}
 	}
 

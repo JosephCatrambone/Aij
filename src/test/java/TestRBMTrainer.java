@@ -1,13 +1,10 @@
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
-import com.josephcatrambone.aij.trainers.RBMTrainer;
+import com.josephcatrambone.aij.trainers.ContrastiveDivergenceTrainer;
 import org.junit.Test;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Created by Jo on 8/15/2015.
@@ -28,7 +25,7 @@ public class TestRBMTrainer {
 		x.setRow(4, new double[]{0,0,1,1,0,0});
 		x.setRow(5, new double[]{0,0,1,1,1,0});
 
-		RBMTrainer trainer = new RBMTrainer();
+		ContrastiveDivergenceTrainer trainer = new ContrastiveDivergenceTrainer();
 		trainer.learningRate = 0.1;
 		trainer.batchSize = 6;
 		trainer.notificationIncrement = 0;
