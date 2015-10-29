@@ -9,7 +9,7 @@ import java.util.Random;
 /**
  * Created by jcatrambone on 5/29/15.
  */
-public class RBMTrainer implements Trainer {
+public class ContrastiveDivergenceTrainer implements Trainer {
 	Random random = new Random();
 	public int notificationIncrement = 0; // If > 0, when iter%notificationIncrement == 0, run notification func.
 	public int maxIterations = 10000; // If we do more iterations than this, stop.

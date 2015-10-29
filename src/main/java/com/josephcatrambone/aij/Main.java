@@ -2,7 +2,7 @@ package com.josephcatrambone.aij;
 
 import com.josephcatrambone.aij.networks.MeanFilterNetwork;
 import com.josephcatrambone.aij.networks.RestrictedBoltzmannMachine;
-import com.josephcatrambone.aij.trainers.RBMTrainer;
+import com.josephcatrambone.aij.trainers.ContrastiveDivergenceTrainer;
 import com.josephcatrambone.aij.utilities.ImageTools;
 import com.josephcatrambone.aij.utilities.NetworkIOTools;
 import javafx.animation.KeyFrame;
@@ -47,7 +47,7 @@ public class Main extends Application {
 
 		// Build RBM for learning
 		final RestrictedBoltzmannMachine rbm = new RestrictedBoltzmannMachine(28*28, HIDDEN_SIZE);
-		final RBMTrainer rbmTrainer = new RBMTrainer();
+		final ContrastiveDivergenceTrainer rbmTrainer = new ContrastiveDivergenceTrainer();
 		rbmTrainer.batchSize = 10; // 5x20
 		rbmTrainer.learningRate = 0.01;
 		rbmTrainer.maxIterations = 10;
@@ -131,10 +131,11 @@ public class Main extends Application {
 		timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(0.2), new EventHandler<ActionEvent>() {
 			int iteration = 0;
 			Matrix input = null;
+
 			@Override
 			public void handle(ActionEvent event) {
-				if(stage.isFocused() && stage.isShowing()) {
-					if(iteration % 100 == 0) {
+				if (stage.isFocused() && stage.isShowing()) {
+					if (iteration % 100 == 0) {
 						iteration = 0;
 						// Draw RBM
 						//rbmTrainer.train(edgeDetector, data, null, null);
@@ -143,7 +144,7 @@ public class Main extends Application {
 						imageView.setImage(img);
 
 						// Render a new example
-						input = Matrix.random(1, 28*28).add_i(1.0).elementMultiply_i(0.5);
+						input = Matrix.random(1, 28 * 28).add_i(1.0).elementMultiply_i(0.5);
 					}
 					input = rbm.daydream(input, 1);
 					Matrix ex = input.clone();
