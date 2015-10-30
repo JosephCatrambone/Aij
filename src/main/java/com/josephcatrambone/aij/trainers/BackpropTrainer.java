@@ -19,19 +19,16 @@ public class BackpropTrainer implements Trainer {
 	public double learningRate = 0.1;
 	public double momentum = 0.0;
 
-	Matrix[] weightBlame;
-	Matrix[] biasBlame;
-	Matrix[] deltaWeights;
-
 	private void log(String msg) {
 		System.out.println(msg);
 	}
 
 	public void train(Network net, Matrix inputs, Matrix labels, Runnable notification) {
 		NeuralNetwork nn = (NeuralNetwork)net; // We only train neural networks.
-		weightBlame = new Matrix[nn.getNumLayers()];
-		biasBlame = new Matrix[nn.getNumLayers()];
-		deltaWeights = new Matrix[nn.getNumLayers()-1];
+		Matrix[] weightBlame = new Matrix[nn.getNumLayers()];
+		Matrix[] biasBlame = new Matrix[nn.getNumLayers()];
+		Matrix[] deltaWeights = new Matrix[nn.getNumLayers()-1];
+		Matrix[] deltaBiases = new Matrix[nn.getNumLayers()];
 		double sumError = Double.MAX_VALUE;
 		int[] sampleIndices = new int[batchSize];
 		Matrix[] layerActivation = null;
@@ -40,7 +37,9 @@ public class BackpropTrainer implements Trainer {
 		// Init delta weights to zero
 		for(int i=0; i < deltaWeights.length; i++) {
 			deltaWeights[i] = Matrix.zeros(nn.getWeights(i).numRows(), nn.getWeights(i).numColumns());
+			deltaBiases[i] = Matrix.zeros(1, nn.getWeights(i).numRows());
 		}
+		deltaBiases[deltaBiases.length-1] = Matrix.zeros(1, nn.getWeights(deltaWeights.length-1).numColumns());
 
 		for(int i=0; i < maxIterations; i++) {
 			// Randomly sample input matrix and examples.
@@ -57,19 +56,17 @@ public class BackpropTrainer implements Trainer {
 			// Delta(L) = (activation - truth) dot (activity)
 			// delta(L) = (weight_L+1_Transpose * delta_L+1 dot deltaActivation(activity_L)
 
-			// Using crossentropy loss dOut = label - prediction
+			Matrix error = layerActivation[layerActivation.length-1].subtract(labels.getRows(sampleIndices));
+			sumError = error.elementMultiply(error).sum();
 
-			Matrix error = labels.getRows(sampleIndices).subtract(layerActivation[layerActivation.length-1]);
-			sumError = error.sum();
-
-			weightBlame[nn.getNumLayers()-1] = error.elementMultiply(layerGradient[layerActivation.length-1]); // Was activity
+			weightBlame[nn.getNumLayers()-1] = error.elementMultiply(layerGradient[layerActivation.length-1]);
 			biasBlame[nn.getNumLayers()-1] = error.sumColumns();
 
 			for(int j=nn.getNumLayers()-2; j >= 0; j--) {
 				Matrix wt = nn.getWeights(j).transpose();
-				error = error.multiply(wt);
-				weightBlame[j] = error.elementMultiply(layerGradient[j]);
-				biasBlame[j] = error.sumColumns();
+				Matrix blame = weightBlame[j+1].multiply(wt);
+				weightBlame[j] = blame.elementMultiply(layerGradient[j]);
+				biasBlame[j] = blame.sumColumns();
 			}
 
 			// Activation_L * delta_L+1
@@ -77,10 +74,17 @@ public class BackpropTrainer implements Trainer {
 				deltaWeights[j].elementMultiply_i(momentum);
 				deltaWeights[j].add_i(layerActivation[j].transpose().multiply(weightBlame[j+1]).elementMultiply_i(1.0 - momentum));
 			}
+			for(int j=0; j < deltaBiases.length; j++) {
+				deltaBiases[j].elementMultiply_i(momentum);
+				deltaBiases[j].add_i(biasBlame[j].elementMultiply_i(1.0 - momentum));
+			}
 
 			// Apply weight changes.
-			for(int j=0; j < deltaWeights.length; j++) {
-				nn.setWeights(j, nn.getWeights(j).add(deltaWeights[j].elementMultiply(learningRate/(float)batchSize)));
+			for (int j = 0; j < deltaWeights.length; j++) {
+				nn.getWeights(j).subtract_i(deltaWeights[j].elementMultiply(learningRate/(float)batchSize));
+			}
+			for(int j=0; j < deltaBiases.length; j++) {
+				//nn.getBiases(j).add_i(deltaBiases[j].elementMultiply(learningRate/(float)batchSize));
 			}
 
 			// Notify user

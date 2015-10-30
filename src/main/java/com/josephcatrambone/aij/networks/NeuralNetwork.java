@@ -53,6 +53,10 @@ public class NeuralNetwork implements Network, Serializable {
 		}
 	}
 
+	private Matrix addBias(Matrix input, int layer) {
+		return biases[layer].repmat(input.numRows(),1).add(input);
+	}
+
 	/*** forwardPropagate
 	 * Given an input, return an array of the activities from every level.
 	 * @param input
@@ -62,7 +66,7 @@ public class NeuralNetwork implements Network, Serializable {
 		Matrix[] results = new Matrix[weights.length+1];
 		results[0] = input;
 		for(int i=0; i < weights.length; i++) {
-			results[i+1] = results[i].multiply(weights[i]).elementOp(activationFunctions[i]);
+			results[i+1] = addBias(results[i], i).multiply(weights[i]).elementOp(activationFunctions[i]);
 		}
 		return results;
 	}
@@ -118,6 +122,14 @@ public class NeuralNetwork implements Network, Serializable {
 
 	public UnaryOperator getDerivativeFunction(int i) {
 		return derivativeFromActivationFunctions[i];
+	}
+
+	public Matrix getBiases(int layer) {
+		return this.biases[layer];
+	}
+
+	public void setBiases(int layer, Matrix biases) {
+		this.biases[layer] = biases;
 	}
 
 }

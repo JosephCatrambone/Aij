@@ -28,13 +28,25 @@ public class TestNeuralNetworkTrainer {
 
 		BackpropTrainer trainer = new BackpropTrainer();
 		trainer.momentum = 0.0;
-		trainer.learningRate = 0.00001;
-		trainer.batchSize = 4;
-		trainer.maxIterations = 1000000;
+		trainer.learningRate = 0.001;
+		trainer.batchSize = 10;
+		trainer.maxIterations = 10000;
 		trainer.earlyStopError = 0.0;
 
 		// Run
+		for(int i=0; i < 2; i++) {
+			System.out.println("Weights " + i + ":" + nn.getWeights(i));
+		}
+		for(int i=0; i < 3; i++) {
+			System.out.println("Biases " + i + ": " + nn.getBiases(i));
+		}
 		trainer.train(nn, x, y, null);
+		for(int i=0; i < 2; i++) {
+			System.out.println("Weights " + i + ":" + nn.getWeights(i));
+		}
+		for(int i=0; i < 3; i++) {
+			System.out.println("Biases " + i + ": " + nn.getBiases(i));
+		}
 
 		// Test XOR
 		Matrix predictions = new Matrix(4, 2);
