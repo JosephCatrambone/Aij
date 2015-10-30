@@ -34,7 +34,7 @@ public class BackpropTrainer implements Trainer {
 		deltaWeights = new Matrix[nn.getNumLayers()-1];
 		double sumError = Double.MAX_VALUE;
 		int[] sampleIndices = new int[batchSize];
-		Matrix[] layerActivation = new Matrix[nn.getNumLayers()];
+		Matrix[] layerActivation = null;
 		Matrix[] layerGradient = new Matrix[nn.getNumLayers()];
 
 		// Init delta weights to zero
@@ -42,24 +42,26 @@ public class BackpropTrainer implements Trainer {
 			deltaWeights[i] = Matrix.zeros(nn.getWeights(i).numRows(), nn.getWeights(i).numColumns());
 		}
 
-		for(int i=0; i < maxIterations && sumError > earlyStopError; i++) {
+		for(int i=0; i < maxIterations; i++) {
 			// Randomly sample input matrix and examples.
 			Arrays.parallelSetAll(sampleIndices, x -> random.nextInt(inputs.numRows()));
 
 			Matrix x = inputs.getRows(sampleIndices);
 
-			Matrix[] forwardPass = nn.forwardPropagate(x);
+			layerActivation = nn.forwardPropagate(x);
 
 			for(int j=0; j < nn.getNumLayers(); j++) {
-				layerActivation[j] = forwardPass[j];
 				layerGradient[j] = layerActivation[j].elementOp(nn.getDerivativeFunction(j));
 			}
 
 			// Delta(L) = (activation - truth) dot (activity)
 			// delta(L) = (weight_L+1_Transpose * delta_L+1 dot deltaActivation(activity_L)
 
+			// Using crossentropy loss dOut = label - prediction
+
 			Matrix error = labels.getRows(sampleIndices).subtract(layerActivation[layerActivation.length-1]);
 			sumError = error.sum();
+
 			weightBlame[nn.getNumLayers()-1] = error.elementMultiply(layerGradient[layerActivation.length-1]); // Was activity
 			biasBlame[nn.getNumLayers()-1] = error.sumColumns();
 
@@ -73,17 +75,20 @@ public class BackpropTrainer implements Trainer {
 			// Activation_L * delta_L+1
 			for(int j=0; j < deltaWeights.length; j++) {
 				deltaWeights[j].elementMultiply_i(momentum);
-				deltaWeights[j].add_i(layerActivation[j].transpose().multiply(weightBlame[j+1]).elementMultiply_i(1.0-momentum));
+				deltaWeights[j].add_i(layerActivation[j].transpose().multiply(weightBlame[j+1]).elementMultiply_i(1.0 - momentum));
 			}
 
 			// Apply weight changes.
 			for(int j=0; j < deltaWeights.length; j++) {
-				nn.setWeights(j, nn.getWeights(j).add(deltaWeights[j].elementMultiply(learningRate)));
+				nn.setWeights(j, nn.getWeights(j).add(deltaWeights[j].elementMultiply(learningRate/(float)batchSize)));
 			}
 
+			// Notify user
 			if(notification != null && notificationIncrement > 0 && i % notificationIncrement == 0) {
 				notification.run();
 			}
+
+			//sumError > earlyStopError
 		}
 
 	}

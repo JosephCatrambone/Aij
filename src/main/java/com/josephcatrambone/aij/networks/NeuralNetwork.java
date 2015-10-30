@@ -12,6 +12,7 @@ public class NeuralNetwork implements Network, Serializable {
 	public static double WEIGHT_SCALE = 0.1;
 
 	private Matrix[] weights;
+	private Matrix[] biases;
 	private UnaryOperator<Double>[] activationFunctions;
 	private UnaryOperator<Double>[] derivativeFromActivationFunctions; // Given c, where c = f(x), compute f^-1(x).
 	// For sigmoid = 1/(1 + e^(-x)) = f(x), dsigmoid(w) = w*(1-w) for w=f(x)
@@ -20,12 +21,18 @@ public class NeuralNetwork implements Network, Serializable {
 
 	public NeuralNetwork(int[] layerSizes, String[] activationFunctions) {
 		weights = new Matrix[layerSizes.length-1];
+		biases = new Matrix[layerSizes.length];
 		this.activationFunctions = new UnaryOperator[layerSizes.length];
 		this.derivativeFromActivationFunctions = new UnaryOperator[layerSizes.length];
 
 		for(int i=0; i < weights.length; i++) {
 			weights[i] = Matrix.random(layerSizes[i], layerSizes[i + 1]);
 			weights[i].elementMultiply_i(WEIGHT_SCALE);
+		}
+		for(int i=0; i < layerSizes.length; i++) {
+			biases[i] = Matrix.zeros(1, layerSizes[i]);
+
+			// Set activation funcs.
 			switch(activationFunctions[i]) { // Java 8 and higher support switch/case.
 				case "tanh":
 					this.activationFunctions[i] = v -> Math.tanh(v);
@@ -47,15 +54,15 @@ public class NeuralNetwork implements Network, Serializable {
 	}
 
 	/*** forwardPropagate
-	 * Given an input, return an array of the activations from every level.
+	 * Given an input, return an array of the activities from every level.
 	 * @param input
 	 * @return
 	 */
 	public Matrix[] forwardPropagate(Matrix input) {
 		Matrix[] results = new Matrix[weights.length+1];
-		results[0] = input.elementOp(activationFunctions[0]);
+		results[0] = input;
 		for(int i=0; i < weights.length; i++) {
-			results[i+1] = results[i].multiply(weights[i]).elementOp_i(activationFunctions[i+1]);
+			results[i+1] = results[i].multiply(weights[i]).elementOp(activationFunctions[i]);
 		}
 		return results;
 	}
