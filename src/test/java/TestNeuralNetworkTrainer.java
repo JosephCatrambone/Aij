@@ -13,12 +13,12 @@ public class TestNeuralNetworkTrainer {
 	@Test
 	public void testXOR() {
 
-		NeuralNetwork nn = new NeuralNetwork(new int[]{2, 3, 1}, new String[]{"linear", "tanh", "linear"});
+		NeuralNetwork nn = new NeuralNetwork(new int[]{2, 3, 1}, new String[]{"tanh", "tanh", "tanh"});
 		Matrix x = new Matrix(4, 2, 0.0);
-		x.setRow(0, new double[]{0,0});
-		x.setRow(1, new double[]{0,1});
-		x.setRow(2, new double[]{1,0});
-		x.setRow(3, new double[]{1,1});
+		x.setRow(0, new double[]{0, 0});
+		x.setRow(1, new double[]{0, 1});
+		x.setRow(2, new double[]{1, 0});
+		x.setRow(3, new double[]{1, 1});
 
 		Matrix y = new Matrix(4, 1, 0.0);
 		y.set(0, 0, 0.0);
@@ -28,7 +28,7 @@ public class TestNeuralNetworkTrainer {
 
 		BackpropTrainer trainer = new BackpropTrainer();
 		trainer.momentum = 0.0;
-		trainer.learningRate = 0.001;
+		trainer.learningRate = 0.1;
 		trainer.batchSize = 10;
 		trainer.maxIterations = 10000;
 		trainer.earlyStopError = 0.0;

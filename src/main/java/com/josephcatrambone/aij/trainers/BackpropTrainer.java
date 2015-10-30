@@ -18,6 +18,7 @@ public class BackpropTrainer implements Trainer {
 	public int batchSize = 1;
 	public double learningRate = 0.1;
 	public double momentum = 0.0;
+	public double lastError = 0.0; // Useful for outside readers. Could probably do better at encap, but meh.
 
 	private void log(String msg) {
 		System.out.println(msg);
@@ -57,7 +58,7 @@ public class BackpropTrainer implements Trainer {
 			// delta(L) = (weight_L+1_Transpose * delta_L+1 dot deltaActivation(activity_L)
 
 			Matrix error = layerActivation[layerActivation.length-1].subtract(labels.getRows(sampleIndices));
-			sumError = error.elementMultiply(error).sum();
+			lastError = error.elementMultiply(error).sum();
 
 			weightBlame[nn.getNumLayers()-1] = error.elementMultiply(layerGradient[layerActivation.length-1]);
 			biasBlame[nn.getNumLayers()-1] = error.sumColumns();
@@ -66,7 +67,7 @@ public class BackpropTrainer implements Trainer {
 				Matrix wt = nn.getWeights(j).transpose();
 				Matrix blame = weightBlame[j+1].multiply(wt);
 				weightBlame[j] = blame.elementMultiply(layerGradient[j]);
-				biasBlame[j] = blame.sumColumns();
+				biasBlame[j] = blame.meanRow();
 			}
 
 			// Activation_L * delta_L+1
@@ -84,7 +85,7 @@ public class BackpropTrainer implements Trainer {
 				nn.getWeights(j).subtract_i(deltaWeights[j].elementMultiply(learningRate/(float)batchSize));
 			}
 			for(int j=0; j < deltaBiases.length; j++) {
-				//nn.getBiases(j).add_i(deltaBiases[j].elementMultiply(learningRate/(float)batchSize));
+				nn.getBiases(j).subtract_i(deltaBiases[j].elementMultiply(learningRate/(float)batchSize));
 			}
 
 			// Notify user

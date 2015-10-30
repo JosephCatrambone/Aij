@@ -9,7 +9,7 @@ import java.util.function.UnaryOperator;
  * Created by jcatrambone on 5/28/15.
  */
 public class NeuralNetwork implements Network, Serializable {
-	public static double WEIGHT_SCALE = 0.1;
+	public static double WEIGHT_SCALE = 0.01;
 
 	private Matrix[] weights;
 	private Matrix[] biases;
