@@ -12,8 +12,8 @@ public class TestNeuralNetworkTrainer {
 
 	@Test
 	public void testXOR() {
+		NeuralNetwork nn = null;
 
-		NeuralNetwork nn = new NeuralNetwork(new int[]{2, 3, 1}, new String[]{"tanh", "tanh", "tanh"});
 		Matrix x = new Matrix(4, 2, 0.0);
 		x.setRow(0, new double[]{0, 0});
 		x.setRow(1, new double[]{0, 1});
@@ -33,36 +33,29 @@ public class TestNeuralNetworkTrainer {
 		trainer.maxIterations = 10000;
 		trainer.earlyStopError = 0.0;
 
-		// Run
-		for(int i=0; i < 2; i++) {
-			System.out.println("Weights " + i + ":" + nn.getWeights(i));
-		}
-		for(int i=0; i < 3; i++) {
-			System.out.println("Biases " + i + ": " + nn.getBiases(i));
-		}
-		trainer.train(nn, x, y, null);
-		for(int i=0; i < 2; i++) {
-			System.out.println("Weights " + i + ":" + nn.getWeights(i));
-		}
-		for(int i=0; i < 3; i++) {
-			System.out.println("Biases " + i + ": " + nn.getBiases(i));
-		}
-
 		// Test XOR
-		Matrix predictions = new Matrix(4, 2);
-		predictions.setRow(0, new double[]{0, 0});
-		predictions.setRow(1, new double[]{0, 1});
-		predictions.setRow(2, new double[]{1, 0});
-		predictions.setRow(3, new double[]{1, 1});
-		predictions = nn.predict(predictions);
+		// Run
+		nn = new NeuralNetwork(new int[]{2, 3, 1}, new String[]{"tanh", "tanh", "tanh"});
+		trainer.train(nn, x, y, null);
 
-		System.out.println(predictions);
-
+		Matrix predictions = nn.predict(x);
 		assertTrue(predictions.get(0, 0) < 0.5);
 		assertTrue(predictions.get(1, 0) > 0.5);
 		assertTrue(predictions.get(2, 0) > 0.5);
 		assertTrue(predictions.get(3, 0) < 0.5);
 
-		//assertEquals(predictions.get(0, 1), 15);
+		nn = new NeuralNetwork(new int[]{2, 3, 1}, new String[]{"logistic", "logistic", "logistic"});
+		trainer.train(nn, x, y, null);
+		assertTrue(predictions.get(0, 0) < 0.5);
+		assertTrue(predictions.get(1, 0) > 0.5);
+		assertTrue(predictions.get(2, 0) > 0.5);
+		assertTrue(predictions.get(3, 0) < 0.5);
+
+		nn = new NeuralNetwork(new int[]{2, 3, 1}, new String[]{"linear", "logistic", "linear"});
+		trainer.train(nn, x, y, null);
+		assertTrue(predictions.get(0, 0) < 0.5);
+		assertTrue(predictions.get(1, 0) > 0.5);
+		assertTrue(predictions.get(2, 0) > 0.5);
+		assertTrue(predictions.get(3, 0) < 0.5);
 	}
 }
