@@ -2,7 +2,7 @@
 A small, simple Java AI library with minimal requirements.
 
 # Features and Example Uses
-## Classic XOR
+## Approximating sin(x)
 
 ```
 // Make our data
@@ -20,6 +20,29 @@ BackpropTrainer trainer = new BackpropTrainer();
 
 // Train
 trainer.train(nn, x, y);
+```
+
+## Classic XOR
+
+```
+Matrix x = new Matrix(4, 2, 0.0);
+x.setRow(0, new double[]{0, 0});
+x.setRow(1, new double[]{0, 1});
+x.setRow(2, new double[]{1, 0});
+x.setRow(3, new double[]{1, 1});
+
+Matrix y = new Matrix(4, 1, 0.0);
+y.set(0, 0, 0.0);
+y.set(1, 0, 1.0);
+y.set(2, 0, 1.0);
+y.set(3, 0, 0.0);
+
+NeuralNetwork nn = new NeuralNetwork(new int[]{2, 3, 1}, new String[]{"tanh", "tanh", "tanh"});
+
+BackpropTrainer trainer = new BackpropTrainer();
+trainer.train(nn, x, y, null);
+
+Matrix predictions = nn.predict(x);
 ```
 
 ## Word2Vec in less than 100 lines.
