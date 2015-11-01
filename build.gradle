@@ -29,8 +29,8 @@ jar {
 	from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
 	manifest {
 		attributes 'Implementation-Title': 'Aij',
-			'Implementation-Version': version,
-			'Main-Class': 'com.josephcatrambone.aij.Main'
+			'Implementation-Version': version
+			//'Main-Class': 'com.josephcatrambone.aij.Main'
 	}
 }
 

@@ -6,6 +6,8 @@ import org.junit.Test;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static org.junit.Assert.assertTrue;
+
 /**
  * Created by Jo on 8/15/2015.
  */
@@ -46,6 +48,20 @@ public class TestRBMTrainer {
 
 		Matrix input = new Matrix(new double[][]{{0, 0, 0, 1, 1, 0}, {0, 0, 1, 1, 0, 0}});
 		Matrix output = rbm.predict(input);
-		//System.out.println(rbm.reconstruct(output));
+		Matrix prediction = rbm.reconstruct(output);
+		System.out.println(prediction);
+		assertTrue(prediction.get(0, 0) < 0.5);
+		assertTrue(prediction.get(0, 1) < 0.5);
+		assertTrue(prediction.get(0, 2) > 0.5);
+		assertTrue(prediction.get(0, 3) > 0.5);
+		assertTrue(prediction.get(0, 4) > 0.5);
+		assertTrue(prediction.get(0, 5) < 0.5);
+
+		assertTrue(prediction.get(1, 0) < 0.5);
+		assertTrue(prediction.get(1, 1) < 0.5);
+		assertTrue(prediction.get(1, 2) > 0.5);
+		assertTrue(prediction.get(1, 3) > 0.5);
+		assertTrue(prediction.get(1, 4) < 0.5);
+		assertTrue(prediction.get(1, 5) < 0.5);
 	}
 }
