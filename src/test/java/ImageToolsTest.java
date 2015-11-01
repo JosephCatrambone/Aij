@@ -31,8 +31,8 @@ public class ImageToolsTest {
 		for(Integer i : new int[]{4, 8, 16}) {
 			// 16 bits
 			int bits = i;
-			bitMatrix = ImageTools.GreyMatrixToBitMatrix(m, bits);
-			m2 = ImageTools.BitMatrixToGrayMatrix(bitMatrix, 0.9, bits);
+			bitMatrix = ImageTools.greyMatrixToBitMatrix(m, bits);
+			m2 = ImageTools.bitMatrixToGrayMatrix(bitMatrix, 0.9, bits);
 			diff = m2.subtract(m);
 			totalError = diff.sum();
 			assertArrayEquals(bits + "-bit conversion diff " + diff + " error: " + totalError, m.getRowArray(0), m2.getRowArray(0), 1e-1);

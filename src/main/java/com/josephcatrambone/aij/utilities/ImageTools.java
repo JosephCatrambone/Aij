@@ -15,11 +15,6 @@ import java.io.IOException;
  * Created by josephcatrambone on 8/17/15.
  */
 public class ImageTools {
-	public static Matrix ImageFileToMatrix(String filename, int width, int height) {
-		Image img = new Image("file:" + filename, width, height, true, true, false);
-		return FXImageToMatrix(img, width, height);
-	}
-
 	public static Matrix FXImageToMatrix(Image image, int width, int height) {
 		if(width == -1) { width = (int)image.getWidth(); }
 		if(height == -1) { height = (int)image.getHeight(); }
@@ -49,12 +44,12 @@ public class ImageTools {
 		return output;
 	}
 
-	/*** GreyMatrixToBitMatrix
+	/*** greyMatrixToBitMatrix
 	 * Convert an image with 8-bit grey values to a matrix with 8x the entries, but with 1/0 values.
 	 * @param matrix
 	 * @return
 	 */
-	public static Matrix GreyMatrixToBitMatrix(Matrix matrix, int bitsPerPixel) {
+	public static Matrix greyMatrixToBitMatrix(Matrix matrix, int bitsPerPixel) {
 		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns() * bitsPerPixel);
 		for(int row=0; row < matrix.numRows(); row++) {
 			for(int column=0; column < matrix.numColumns(); column++) {
@@ -70,13 +65,13 @@ public class ImageTools {
 		return output;
 	}
 
-	/*** BitMatrixToGrayMatrix
+	/*** bitMatrixToGrayMatrix
 	 * Takes an mxn matrix and returns an mx(n/8) matrix.
 	 * @param matrix
 	 * @param threshold The value for a bit to be considered 'high'.  Usually 0.99 is good.
 	 * @return
 	 */
-	public static Matrix BitMatrixToGrayMatrix(Matrix matrix, double threshold, int bitsPerPixel) {
+	public static Matrix bitMatrixToGrayMatrix(Matrix matrix, double threshold, int bitsPerPixel) {
 		Matrix output = Matrix.zeros(matrix.numRows(), matrix.numColumns() / bitsPerPixel);
 		for(int row=0; row < matrix.numRows(); row++) {
 			for(int column=0; column < matrix.numColumns()/bitsPerPixel; column++) {
@@ -92,11 +87,11 @@ public class ImageTools {
 		return output;
 	}
 
-	public static Image MatrixToFXImage(Matrix matrix) {
-		return MatrixToFXImage(matrix, true);
+	public static Image matrixToFXImage(Matrix matrix) {
+		return matrixToFXImage(matrix, true);
 	}
 
-	public static Image MatrixToFXImage(Matrix matrix, boolean normalize) {
+	public static Image matrixToFXImage(Matrix matrix, boolean normalize) {
 		WritableImage img = new WritableImage(matrix.numColumns(), matrix.numRows());
 		PixelWriter pw = img.getPixelWriter();
 
