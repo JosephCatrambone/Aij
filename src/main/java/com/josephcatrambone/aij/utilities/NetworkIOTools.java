@@ -10,7 +10,7 @@ import java.util.Scanner;
  * Created by Jo on 8/17/2015.
  */
 public class NetworkIOTools {
-	public static boolean SaveNetworkToDisk(Network net, String filename) {
+	public static boolean saveNetworkToDisk(Network net, String filename) {
 		try {
 			ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(new File(filename)));
 			oos.writeObject(net);
@@ -21,7 +21,7 @@ public class NetworkIOTools {
 		return true;
 	}
 
-	public static Network LoadNetworkFromDisk(String filename) {
+	public static Network loadNetworkFromDisk(String filename) {
 		Network net = null;
 		try {
 			ObjectInputStream ois = new ObjectInputStream(new FileInputStream(new File(filename)));
@@ -35,7 +35,7 @@ public class NetworkIOTools {
 		return net;
 	}
 
-	public static String MatrixToString(Matrix weights) {
+	public static String matrixToString(Matrix weights) {
 		StringBuilder result = new StringBuilder();
 		result.append("rows " + weights.numRows() + " ");
 		result.append("columns " + weights.numColumns() + " ");
@@ -58,7 +58,7 @@ public class NetworkIOTools {
 		}
 	}
 
-	public static Matrix StringToMatrix(String string) {
+	public static Matrix stringToMatrix(String string) {
 		Scanner scanner = new Scanner(string);
 
 		// Instance the network.
