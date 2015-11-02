@@ -163,8 +163,17 @@ public class Matrix implements Serializable {
 	}
 
 	public Matrix addSubmatrix_i(Matrix other, int startRow, int startColumn) {
+		return addSubmatrix_i(other, startRow, startColumn, false);
+	}
+
+	public Matrix addSubmatrix_i(Matrix other, int startRow, int startColumn, boolean skipOutOfBounds) {
 		for(int y=0; y < other.numRows(); y++) {
 			for(int x=0; x < other.numColumns(); x++) {
+				if(y+startRow < 0 || x+startColumn < 0 || y+startRow >= m.getRows() || x+startColumn >= m.getColumns()) {
+					if(skipOutOfBounds) {
+						continue;
+					}
+				}
 				this.m.put(y+startRow, x+startColumn, m.get(y+startRow, x+startColumn)+other.m.get(y, x));
 			}
 		}

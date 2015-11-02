@@ -20,6 +20,7 @@ public class ConvolutionalNetwork implements Network, Serializable {
 	private Network operator;
 	private int windowWidth, windowHeight;
 	private int exampleWidth, exampleHeight;
+	private int outputWidth, outputHeight;
 	private int convolutionOutputWidth, convolutionOutputHeight;
 	private int xStep, yStep;
 	private EdgeBehavior edgeBehavior;
@@ -61,7 +62,7 @@ public class ConvolutionalNetwork implements Network, Serializable {
 	 * predict and reconstruct instead.
 	 * @return
 	 */
-	public Matrix convolve2D(Matrix input, ConvolutionOperation convOp, boolean hasOutput, int eW, int eH, int eXStep, int eYStep, int wW, int wH, int cW, int cH, int cXStep, int cYStep) {
+	public Matrix convolve2D(Matrix input, ConvolutionOperation convOp, boolean hasOutput, int eW, int eH, int eXStep, int eYStep, int wW, int wH, int cW, int cH, int coW, int coH, int cXStep, int cYStep) {
 		Matrix output = null;
 
 		if(hasOutput) { output = new Matrix(input.numRows(), getNumOutputs()); }
@@ -70,7 +71,7 @@ public class ConvolutionalNetwork implements Network, Serializable {
 			// For each example row, reshape to a 2D 'image'.
 			Matrix exampleIn = input.getRow(exampleIndex).reshape_i(eH, eW);
 			Matrix exampleOut = null;
-			if(hasOutput) { exampleOut = new Matrix(cH *(eH/eYStep), cW *(eW/eXStep)); }
+			if(hasOutput) { exampleOut = new Matrix(coH, coW); }
 
 			for(int y=0; y < eH/eYStep; y++) { // y is the sample multiplier.
 				for(int x=0; x < eW/eXStep; x++) {
@@ -113,7 +114,7 @@ public class ConvolutionalNetwork implements Network, Serializable {
 					// If a result is given by the op, reshape it and apply to the output.
 					if(hasOutput) {
 						result.reshape_i(cH, cW);
-						exampleOut.addSubmatrix_i(result, y*cYStep, x*cXStep); // We may want to overlay the 'conv' in some direction.
+						exampleOut.addSubmatrix_i(result, y*cYStep-(cH/2), x*cXStep-(cW/2), true); // We may want to overlay the 'conv' in some direction.
 						//exampleOut.setSubmatrix_i(result, y*cH, x*cW);
 					}
 				}
@@ -141,6 +142,7 @@ public class ConvolutionalNetwork implements Network, Serializable {
 			xStep, yStep,
 			windowWidth, windowHeight,
 			convolutionOutputWidth, convolutionOutputHeight,
+			convolutionOutputWidth *(exampleWidth/xStep), convolutionOutputHeight *(exampleHeight/yStep),
 			convolutionOutputWidth, convolutionOutputHeight
 		);
 	}
@@ -153,10 +155,11 @@ public class ConvolutionalNetwork implements Network, Serializable {
 				return operator.reconstruct(input);
 			}
 		}, true,
-			convolutionOutputWidth*(exampleWidth/xStep), convolutionOutputHeight*(exampleHeight/yStep), // Our convolution layer is this big
+			(exampleWidth/xStep)*convolutionOutputWidth, (exampleHeight/yStep)*convolutionOutputHeight, // Our convolution layer is this big
 			convolutionOutputWidth, convolutionOutputHeight, // We assume there's no overlap on the conv layer and step across examples like this.
 			convolutionOutputWidth, convolutionOutputHeight, // Our window size is one convolution op.
 			windowWidth, windowHeight, // Out convolution output, in this case, is the size of the original sample.
+			exampleWidth, exampleHeight, // Want to write out to normal example size.
 			xStep, yStep // And we step across it with the same step size.
 		);
 	}
