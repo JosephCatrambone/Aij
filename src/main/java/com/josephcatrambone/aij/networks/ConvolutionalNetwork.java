@@ -20,7 +20,6 @@ public class ConvolutionalNetwork implements Network, Serializable {
 	private Network operator;
 	private int windowWidth, windowHeight;
 	private int exampleWidth, exampleHeight;
-	private int outputWidth, outputHeight;
 	private int convolutionOutputWidth, convolutionOutputHeight;
 	private int xStep, yStep;
 	private EdgeBehavior edgeBehavior;
@@ -142,8 +141,8 @@ public class ConvolutionalNetwork implements Network, Serializable {
 			xStep, yStep,
 			windowWidth, windowHeight,
 			convolutionOutputWidth, convolutionOutputHeight,
-			convolutionOutputWidth *(exampleWidth/xStep), convolutionOutputHeight *(exampleHeight/yStep),
-			convolutionOutputWidth, convolutionOutputHeight
+			getOutputWidth(), getOutputHeight(),
+			convolutionOutputWidth, convolutionOutputHeight // Convolution doesn't overlap. Separate channels.
 		);
 	}
 
@@ -155,7 +154,7 @@ public class ConvolutionalNetwork implements Network, Serializable {
 				return operator.reconstruct(input);
 			}
 		}, true,
-			(exampleWidth/xStep)*convolutionOutputWidth, (exampleHeight/yStep)*convolutionOutputHeight, // Our convolution layer is this big
+			getOutputWidth(), getOutputHeight(), // Our convolution layer is this big
 			convolutionOutputWidth, convolutionOutputHeight, // We assume there's no overlap on the conv layer and step across examples like this.
 			convolutionOutputWidth, convolutionOutputHeight, // Our window size is one convolution op.
 			windowWidth, windowHeight, // Out convolution output, in this case, is the size of the original sample.
@@ -171,7 +170,16 @@ public class ConvolutionalNetwork implements Network, Serializable {
 
 	@Override
 	public int getNumOutputs() {
-		return getOperations()*operator.getNumOutputs();
+		//return getOperations()*operator.getNumOutputs();
+		return getOutputWidth()*getOutputHeight();
+	}
+
+	public int getOutputWidth() {
+		return (exampleWidth/xStep) * convolutionOutputWidth;
+	}
+
+	public int getOutputHeight() {
+		return (exampleHeight/yStep) * convolutionOutputHeight;
 	}
 
 	/*** getOperations
