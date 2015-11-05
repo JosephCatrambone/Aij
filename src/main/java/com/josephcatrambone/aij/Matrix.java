@@ -3,6 +3,7 @@ package com.josephcatrambone.aij;
 import org.jblas.DoubleMatrix;
 
 import java.io.Serializable;
+import java.util.Random;
 import java.util.function.UnaryOperator;
 
 /**
@@ -34,6 +35,14 @@ public class Matrix implements Serializable {
 		return new Matrix(DoubleMatrix.rand(rows, columns).muli(2.0).subi(1.0));
 	}
 
+	public static Matrix concatVertically(Matrix a, Matrix b) {
+		return new Matrix(DoubleMatrix.concatVertically(a.m, b.m));
+	}
+
+	public static Matrix concatHorizontally(Matrix a, Matrix b) {
+		return new Matrix(DoubleMatrix.concatHorizontally(a.m, b.m));
+	}
+
 	// Constructors
 	private Matrix(DoubleMatrix m) { this.m = m; }
 
@@ -50,6 +59,16 @@ public class Matrix implements Serializable {
 	// Utils
 	public Matrix clone() {
 		return new Matrix(m.dup());
+	}
+
+	/*** shuffle_i
+	 * Perform a Fisher-Yates shuffle on the rows.
+	 */
+	public void shuffle_i() {
+		Random random = new Random();
+		for(int i=0; i < m.getRows(); i++) {
+			m.swapRows(i, random.nextInt(m.getRows()-i)+i+1);
+		}
 	}
 
 	// Getters/setters
@@ -97,6 +116,7 @@ public class Matrix implements Serializable {
 
 	/*** appendRow
 	 * Add a row after all the others.  There will be an array copy no matter what, so there is no in-place.
+	 * Generally, you're probably better off using the concatVertically method for Matrices.
 	 * @param values
 	 * @return
 	 */
@@ -108,19 +128,6 @@ public class Matrix implements Serializable {
 		}
 		m2.putRow(m.rows, new DoubleMatrix(values));
 
-		return new Matrix(m2);
-	}
-
-	public Matrix prependColumn(double[] values) {
-		return prependColumn(new Matrix(new DoubleMatrix(values)));
-	}
-
-	public Matrix prependColumn(Matrix column) {
-		DoubleMatrix m2 = new DoubleMatrix(m.rows, m.columns+1);
-		m2.putColumn(0, column.m);
-		for(int i=0; i < m.columns; i++) {
-			m2.putColumn(i+1, m.getColumn(i));
-		}
 		return new Matrix(m2);
 	}
 
