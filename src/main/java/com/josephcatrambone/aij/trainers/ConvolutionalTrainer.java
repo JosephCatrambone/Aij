@@ -2,12 +2,11 @@ package com.josephcatrambone.aij.trainers;
 
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.networks.ConvolutionalNetwork;
-import com.josephcatrambone.aij.networks.Network;
 import com.josephcatrambone.aij.networks.FunctionNetwork;
+import com.josephcatrambone.aij.networks.Network;
 
 import java.util.Random;
 import java.util.function.Consumer;
-import java.util.function.UnaryOperator;
 
 /** ConvolutionalTrainer
  * Iterate across a dataset, subsampling according to a window.
@@ -43,23 +42,21 @@ public class ConvolutionalTrainer implements Trainer {
 			int i=0;
 			@Override
 			public void accept(Matrix intermediate) {
+				int width = intermediate.numColumns();
+				int height = intermediate.numRows();
+				intermediate.reshape_i(1, width*height);
 				windowData.setRow(i, intermediate);
 				i = (i+1)%windowData.numRows();
+				intermediate.reshape_i(height, width);
 			}
 		};
-		netSpy.predictionFunction = new UnaryOperator<Matrix>() {
-			@Override
-			public Matrix apply(Matrix matrix) {
-				return new Matrix(1, op.getNumOutputs());
-			}
-		};
+		netSpy.reconstructionMonitor = (Matrix matrix) -> op.reconstruct(matrix);
+		netSpy.predictionFunction = (Matrix matrix) -> op.predict(matrix);
 
 		cn.setOperator(netSpy);
 
 		// The netspy will intercept all the training exampels that WOULD be predicted by the network,
 		// and will add them to a list.  We then select random subsets and train the network on them.
-
-
 		for(int i=0; i < maxIterations && lastError > earlyStopError; i++) {
 			Matrix examples = new Matrix(subwindowsPerExample*examplesPerBatch, op.getNumInputs());
 			Matrix labels2 = null;
