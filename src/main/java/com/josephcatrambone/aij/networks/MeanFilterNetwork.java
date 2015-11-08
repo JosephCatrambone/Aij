@@ -2,10 +2,12 @@ package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
 
+import java.io.Serializable;
+
 /**
  * Created by josephcatrambone on 7/31/15.
  */
-public class MeanFilterNetwork extends FunctionNetwork {
+public class MeanFilterNetwork extends FunctionNetwork implements Serializable {
 
 	public Matrix mean;
 
