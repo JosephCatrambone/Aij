@@ -31,7 +31,7 @@ public class TestRBMTrainer {
 		trainer.learningRate = 0.1;
 		trainer.batchSize = 6;
 		trainer.notificationIncrement = 0;
-		trainer.maxIterations = 25000;
+		trainer.maxIterations = 50000;
 		//trainer.earlyStopError = 0.0000001;
 
 		Runnable updateFunction = new Runnable() {

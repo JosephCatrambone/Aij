@@ -16,6 +16,7 @@ public class NetworkIOTools {
 			oos.writeObject(net);
 			oos.close();
 		} catch (IOException ioe) {
+			System.err.println("WARNING: Failed to save network " + filename + ": " + ioe);
 			return false;
 		}
 		return true;

@@ -15,6 +15,7 @@ import java.io.Serializable;
  * [
  */
 public class ConvolutionalNetwork implements Network, Serializable {
+	static final long serialVersionUID = 425051685750127743L;
 	public enum EdgeBehavior {ZEROS, REPEAT, MIRROR, WRAP};
 
 	private Network operator;

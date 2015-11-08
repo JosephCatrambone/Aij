@@ -8,6 +8,7 @@ import java.io.Serializable;
  * Created by jcatrambone on 5/28/15.
  */
 public class DeepNetwork implements Network, Serializable {
+	static final long serialVersionUID = 547503361466954332L;
 	private Network[] networks;
 
 	public DeepNetwork(Network... subnets) {
