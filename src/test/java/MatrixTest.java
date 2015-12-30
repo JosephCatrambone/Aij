@@ -41,12 +41,22 @@ public class MatrixTest {
 
 	@Test
 	public void testReshape() {
+		// Verify basic reshape
 		Matrix m = new Matrix(3, 5);
 		assertEquals(m.numRows(), 3);
 		assertEquals(m.numColumns(), 5);
 		m.reshape_i(15, 1);
 		assertEquals(m.numRows(), 15);
 		assertEquals(m.numColumns(), 1);
+		// Verify COLUMN-MAJOR reshaping.
+		m.reshape_i(1, 15);
+		m.setRow(0, new double[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5});
+		m.reshape_i(5, 3);
+		assertArrayEquals(m.getRowArray(0), new double[]{1, 6, 1}, 1e-8);
+		assertArrayEquals(m.getRowArray(1), new double[]{2, 7, 2}, 1e-8);
+		assertArrayEquals(m.getRowArray(2), new double[]{3, 8, 3}, 1e-8);
+		assertArrayEquals(m.getRowArray(3), new double[]{4, 9, 4}, 1e-8);
+		assertArrayEquals(m.getRowArray(4), new double[]{5, 0, 5}, 1e-8);
 	}
 
 	@Test

@@ -12,12 +12,13 @@ import java.util.function.UnaryOperator;
  * Created by Jo on 6/7/2015.
  */
 public class FunctionNetwork implements Network, Serializable {
+	static final long serialVersionUID = 400409306301525046L;
 	private int inputSize, outputSize;
 
-	public Consumer <Matrix> predictionMonitor = null;
-	public Consumer <Matrix> reconstructionMonitor = null;
-	public UnaryOperator <Matrix> predictionFunction = null;
-	public UnaryOperator <Matrix> reconstructionFunction = UnaryOperator.identity();
+	public transient Consumer <Matrix> predictionMonitor = null;
+	public transient Consumer <Matrix> reconstructionMonitor = null;
+	public transient UnaryOperator <Matrix> predictionFunction = null;
+	public transient UnaryOperator <Matrix> reconstructionFunction = UnaryOperator.identity();
 
 	public FunctionNetwork(int inputSize, int outputSize) {
 		this.inputSize = inputSize;

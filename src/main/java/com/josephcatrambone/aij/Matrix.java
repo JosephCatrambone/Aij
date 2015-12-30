@@ -232,6 +232,12 @@ public class Matrix implements Serializable, Cloneable {
 		return new Matrix(m.transpose());
 	}
 
+	/***
+	 * Perform a COLUMN-MAJOR in-place reshape of the matrix.
+	 * @param rows
+	 * @param columns
+	 * @return
+	 */
 	public Matrix reshape_i(int rows, int columns) {
 		m.reshape(rows, columns);
 		return this;

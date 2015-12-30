@@ -39,28 +39,32 @@ public class ConvolutionTest {
 
 	@Test
 	public void test2DReconstruction() {
+		final int WIDTH = 5;
+		final int HEIGHT = 3;
+		final int OPERATOR_ROOT_SIZE = 3;
 		// double[][] is column-major
-		Matrix m = Matrix.zeros(3, 5);
-		m.set(1, 1, 1.0);
-		m.set(1, 2, 1.0);
-		m.set(1, 3, 1.0);
-		m.reshape_i(1, 3*5);
-		FunctionNetwork oneToOne = new FunctionNetwork(9, 1); // 3x3 -> 1x1
+		Matrix prediction = Matrix.zeros(HEIGHT, WIDTH);
+		prediction.set(1, 1, 1.0);
+		prediction.set(1, 2, 1.0);
+		prediction.set(1, 3, 1.0);
+		prediction.reshape_i(1, WIDTH*HEIGHT);
+		Matrix reconstruction = Matrix.zeros(HEIGHT, WIDTH);
+		FunctionNetwork oneToOne = new FunctionNetwork(OPERATOR_ROOT_SIZE*OPERATOR_ROOT_SIZE, 1); // 3x3 -> 1x1
 		oneToOne.predictionFunction = (Matrix k) -> new Matrix(1, 1, k.sum());
-		oneToOne.reconstructionFunction = (Matrix k) -> new Matrix(3, 3, k.sum()); // Take whatever is in the center and assign it to all values in area.
-		//        1 1 1
-		//  1 ->  1 1 1
-		//        1 1 1
+		oneToOne.reconstructionFunction = (Matrix k) -> new Matrix(OPERATOR_ROOT_SIZE, OPERATOR_ROOT_SIZE, k.sum()); // Take whatever is in the center and assign it to all values in area.
+		// 0 0 0 0 0     1 2 3 2 1
+		// 0 1 1 1 0 ->  1 2 3 2 1
+		// 0 0 0 0 0     1 2 3 2 1
 
-		ConvolutionalNetwork cn = new ConvolutionalNetwork(oneToOne, 5, 3, 3, 3, 1, 1, 1, 1, ConvolutionalNetwork.EdgeBehavior.ZEROS);
+		ConvolutionalNetwork cn = new ConvolutionalNetwork(oneToOne,
+				WIDTH, HEIGHT,
+				OPERATOR_ROOT_SIZE, OPERATOR_ROOT_SIZE,
+				1, 1,
+				1, 1,
+				ConvolutionalNetwork.EdgeBehavior.ZEROS);
 
-		Matrix result = cn.reconstruct(m);
+		Matrix result = cn.reconstruct(prediction);
 
-		result.reshape_i(3, 5);
 		System.out.println(result);
-
-		m.reshape_i(3, 5);
-		System.out.println(m);
 	}
-
 }

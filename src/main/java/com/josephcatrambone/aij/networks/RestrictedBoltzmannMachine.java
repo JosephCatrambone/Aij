@@ -9,6 +9,7 @@ import java.util.Random;
  * Created by jcatrambone on 5/28/15.
  */
 public class RestrictedBoltzmannMachine implements Network, Serializable {
+	static final long serialVersionUID = 839980212329565332L;
 	public static final double ACTIVE_STATE = 1.0;
 	public static final double INACTIVE_STATE = 0.0;
 	public static double INITIAL_WEIGHT_SCALE = 0.1;

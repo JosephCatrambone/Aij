@@ -2,6 +2,7 @@ package com.josephcatrambone.aij.networks;
 
 import com.josephcatrambone.aij.Matrix;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.function.UnaryOperator;
 
@@ -9,21 +10,22 @@ import java.util.function.UnaryOperator;
  * Created by jcatrambone on 5/28/15.
  */
 public class NeuralNetwork implements Network, Serializable {
+	static final long serialVersionUID = 572657519167385252L;
 	public static double WEIGHT_SCALE = 0.01;
+
+	private String[] activationTypes; // Used for serialization.
 
 	private Matrix[] weights;
 	private Matrix[] biases;
-	private UnaryOperator<Double>[] activationFunctions;
-	private UnaryOperator<Double>[] derivativeFromActivationFunctions; // Given c, where c = f(x), compute f^-1(x).
+	transient private UnaryOperator<Double>[] activationFunctions;
+	transient private UnaryOperator<Double>[] derivativeFromActivationFunctions; // Given c, where c = f(x), compute f^-1(x).
 	// For sigmoid = 1/(1 + e^(-x)) = f(x), dsigmoid(w) = w*(1-w) for w=f(x)
 	// This isn't the derivative from X, it's the derivative from the activation of X.
 	// DON'T SCREW THIS UP.  AGAIN.
 
-	public NeuralNetwork(int[] layerSizes, String[] activationFunctions) {
+	public NeuralNetwork(int[] layerSizes, String[] activationTypes) {
 		weights = new Matrix[layerSizes.length-1];
 		biases = new Matrix[layerSizes.length];
-		this.activationFunctions = new UnaryOperator[layerSizes.length];
-		this.derivativeFromActivationFunctions = new UnaryOperator[layerSizes.length];
 
 		for(int i=0; i < weights.length; i++) {
 			weights[i] = Matrix.random(layerSizes[i], layerSizes[i + 1]);
@@ -31,9 +33,19 @@ public class NeuralNetwork implements Network, Serializable {
 		}
 		for(int i=0; i < layerSizes.length; i++) {
 			biases[i] = Matrix.zeros(1, layerSizes[i]);
+		}
 
+		this.activationTypes = activationTypes;
+		setActivationFunctions(activationTypes);
+	}
+
+	public void setActivationFunctions(String[] activationTypes) {
+		this.activationFunctions = new UnaryOperator[this.getNumLayers()];
+		this.derivativeFromActivationFunctions = new UnaryOperator[this.getNumLayers()];
+
+		for(int i=0; i < this.getNumLayers(); i++) {
 			// Set activation funcs.
-			switch(activationFunctions[i]) { // Java 8 and higher support switch/case.
+			switch(activationTypes[i]) { // Java 8 and higher support switch/case.
 				case "tanh":
 					this.activationFunctions[i] = v -> Math.tanh(v);
 					this.derivativeFromActivationFunctions[i] = v -> 1.0 - (v*v); // 1 - tanh^2. v = tanh()
@@ -51,6 +63,11 @@ public class NeuralNetwork implements Network, Serializable {
 					throw new IllegalArgumentException("Unrecognized activation function in NN: " + activationFunctions[i]);
 			}
 		}
+	}
+
+	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+		setActivationFunctions(this.activationTypes);
 	}
 
 	private Matrix addBias(Matrix input, int layer) {

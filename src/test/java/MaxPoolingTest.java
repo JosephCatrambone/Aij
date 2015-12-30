@@ -2,7 +2,6 @@ import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.networks.MaxPoolingNetwork;
 import org.junit.Test;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -10,7 +9,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class MaxPoolingTest {
 	@Test
-	public void testMax() {
+	public void testPredict() {
 		Matrix m = new Matrix(2, 3);
 		assertEquals(m.numRows(), 2);
 		assertEquals(m.numColumns(), 3);
@@ -21,5 +20,16 @@ public class MaxPoolingTest {
 		assertEquals(pred.numRows(), 1);
 		assertEquals(pred.numColumns(), 1);
 		assertEquals("Max works.", pred.get(0, 0), 4.0, 1e-5);
+	}
+
+	@Test
+	public void testReconstruct() {
+		Matrix m = new Matrix(1, 1);
+		m.set(0, 0, 17.0);
+		MaxPoolingNetwork mpn = new MaxPoolingNetwork(45);
+		Matrix reconstruction = mpn.reconstruct(m);
+		assertEquals(reconstruction.numRows(), 1);
+		assertEquals(reconstruction.numColumns(), 45);
+		assertEquals(reconstruction.sum(), 17.0, 1e-8);
 	}
 }
