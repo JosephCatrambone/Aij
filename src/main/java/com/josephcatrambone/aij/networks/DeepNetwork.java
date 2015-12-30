@@ -69,4 +69,8 @@ public class DeepNetwork implements Network, Serializable {
 	public void setWeights(int i, Matrix weights) {
 
 	}
+
+	public Network getSubnet(int index) {
+		return networks[index];
+	}
 }
