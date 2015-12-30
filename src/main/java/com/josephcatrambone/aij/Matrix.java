@@ -13,7 +13,7 @@ import java.util.function.UnaryOperator;
  * All in-place operations are suffixed with 'i'.
  * This is a VERY thin wrapper around JBlas.
  */
-public class Matrix implements Serializable {
+public class Matrix implements Serializable, Cloneable {
 	private DoubleMatrix m;
 
 	// Static methods
