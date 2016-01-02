@@ -33,7 +33,7 @@ public class DeepNetworkTrainer implements Trainer {
 			}
 
 			// Abstract out the training data for the next layer.
-			trainingData = dn.getSubnet(i).predict(inputs);
+			trainingData = dn.getSubnet(i).predict(trainingData);
 		}
 
 		// Supervised training for last layer.
