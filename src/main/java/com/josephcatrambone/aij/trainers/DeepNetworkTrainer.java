@@ -37,7 +37,9 @@ public class DeepNetworkTrainer implements Trainer {
 		}
 
 		// Supervised training for last layer.
-		trainers[dn.getNumLayers()-1].train(dn.getSubnet(dn.getNumLayers()-1), trainingData, labels, notification);
+		if(trainers[dn.getNumLayers()-1] != null) {
+			trainers[dn.getNumLayers()-1].train(dn.getSubnet(dn.getNumLayers()-1), trainingData, labels, notification);
+		}
 	}
 
 
