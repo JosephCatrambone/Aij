@@ -6,26 +6,26 @@ By default, this library depends only on OpenCL.  If you remove the GPUGraph.jav
 ## TODO:
 
 1. JSON Serialization of Graphs
-1. Subtract Node
-1. Finish Inverse Node
 1. Operator broadcasting of inputs
 1. In-memory variables so we don't have to keep pushing stuff via inputs
-1. Constants
+1. Constants (depends on Variables)
 1. Convolution
+1. Input and Variable aren't supported as right-hand-side operators to power or exp functions.
 
-## Operators
+## Operators and Basic Nodes
 
 - [x] ABS
 - [x] ADD
+- [x] EXP
 - [x] INPUT
-- [ ] INVERT
-- [ ] LOG
+- [x] INVERT
+- [x] LOG
 - [x] MATMUL
 - [x] MULTIPLY
 - [x] NEGATE
 - [x] POWER
 - [x] SIGMOID
-- [ ] SUBTRACT
+- [x] SUBTRACT
 - [x] TANH
 - [ ] TRACE
 - [ ] TRANSPOSE

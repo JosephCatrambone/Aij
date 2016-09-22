@@ -15,6 +15,7 @@ dependencies {
 	// For JBlas
 	//compile 'org.jblas:jblas:1.2.4'
 	//runtime 'org.jblas:jblas:1.2.4'
+	compile 'org.jocl:jocl:2.0.0'
 }
 
 /*
@@ -57,6 +58,7 @@ test {
 		// use enum values:
 		// events org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT,
 		// org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR,
+		exceptionFormat = 'full'
 	}
 }
 
