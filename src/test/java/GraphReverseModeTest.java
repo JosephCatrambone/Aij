@@ -1,4 +1,6 @@
-package com.josephcatrambone.aij;
+import com.josephcatrambone.aij.CPUGraph;
+import com.josephcatrambone.aij.Dimension;
+import com.josephcatrambone.aij.Graph;
 
 import org.junit.Test;
 

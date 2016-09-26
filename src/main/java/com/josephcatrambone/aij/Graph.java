@@ -49,17 +49,17 @@ public abstract class Graph {
 		}
 
 		switch(ops.get(node)) {
+			case ABS:
 			case ADD:
 			case EXP:
-			case SUBTRACT:
-			case MULTIPLY:
 			case INVERT:
+			case LOG:
+			case MULTIPLY:
 			case NEGATE:
 			case POWER:
-			case TANH:
+			case SUBTRACT:
 			case SIGMOID:
-			case ABS:
-			case LOG:
+			case TANH:
 				return getShape(arguments.get(node)[0]); // Get left arg.
 			case MATRIXMULTIPLY:
 				//leftShape.getColumns() == rightShape.getRows()
@@ -74,6 +74,10 @@ public abstract class Graph {
 			default:
 				throw new RuntimeException();
 		}
+	}
+
+	public void setShape(int node, Dimension dim) {
+		this.shapes.set(node, dim);
 	}
 
 	public abstract float[] getOutput(HashMap<Integer, float[]> inputs, int node);
