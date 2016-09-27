@@ -8,7 +8,7 @@ import java.util.List;
  * Created by jcatrambone on 9/12/16.
  */
 public abstract class Graph {
-	public enum NODE_OPERATION {ABS, ADD, EXP, INPUT, INVERT, LOG, MULTIPLY, MATRIXMULTIPLY, NEGATE, POWER, SIGMOID, SUBTRACT, TANH, TRANSPOSE, TRACE};
+	public enum NODE_OPERATION {ABS, ADD, EXP, INPUT, INVERT, LOG, MULTIPLY, MATRIXMULTIPLY, NEGATE, POWER, POWER2, SIGMOID, SUBTRACT, TANH, TRANSPOSE, TRACE};
 	public List<String> names;
 	public List<NODE_OPERATION> ops;
 	public List<int[]> arguments;
@@ -57,6 +57,7 @@ public abstract class Graph {
 			case MULTIPLY:
 			case NEGATE:
 			case POWER:
+			case POWER2:
 			case SUBTRACT:
 			case SIGMOID:
 			case TANH:

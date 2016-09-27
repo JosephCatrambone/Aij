@@ -192,6 +192,13 @@ public class CPUGraph extends Graph {
 					adjoint[left][i] = adjoint[node][i]*(forward[right][0] * (float)Math.pow(forward[left][i], forward[right][0]-1));
 				}
 				break;
+			case POWER2:
+				left = arguments.get(node)[0];
+				leftShape = getShape(left);
+				for(int i=0; i < leftShape.size(); i++) {
+					adjoint[left][i] = adjoint[node][i]*(2.0f * forward[left][i]);
+				}
+				break;
 			case TANH:
 				left = arguments.get(node)[0];
 				leftShape = getShape(left);
@@ -323,6 +330,9 @@ public class CPUGraph extends Graph {
 				float[] base = forward[arguments.get(node)[0]];
 				float exp = forward[arguments.get(node)[1]][0];
 				elementUnaryOp(base, forward[node], (x) -> (float)Math.pow(x, exp));
+				break;
+			case POWER2:
+				elementUnaryOp(forward[arguments.get(node)[0]], forward[node], (x) -> (float)Math.pow(x, 2.0f));
 				break;
 			case TRACE:
 				left = this.arguments.get(node)[0];

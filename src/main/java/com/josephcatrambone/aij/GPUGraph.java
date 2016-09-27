@@ -1,5 +1,7 @@
 package com.josephcatrambone.aij;
 
+import org.jocl.*;
+
 import java.io.*;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -7,7 +9,6 @@ import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
 
 import static org.jocl.CL.*;
-import org.jocl.*;
 
 /**
  * Created by jcatrambone on 9/19/16.
@@ -61,15 +62,21 @@ public class GPUGraph extends Graph {
 		this.context = clCreateContext(contextProperties, 1, new cl_device_id[]{ device }, null, null, null);
 
 		// Create a command queue.
-		this.commandQueue = clCreateCommandQueue(this.context, device, 0, null);
+		cl_queue_properties commandQueueProperties = new cl_queue_properties();
+		try {
+			this.commandQueue = clCreateCommandQueueWithProperties(this.context, device, commandQueueProperties, null);
+		} catch(UnsupportedOperationException uoe) {
+			this.commandQueue = clCreateCommandQueue(this.context, device, 0, null); // Deprecated.
+		}
 
 		// Create the program from the source in the parent directory.
-		String programSource = GPUGraph.loadProgramSource();
+		String programSource = GPUGraph.buildProgram();
 		this.program = clCreateProgramWithSource(context, 1, new String[]{ programSource }, null, null);
 
 		// Create the kernels for each function.
 		this.kernels = new cl_kernel[Graph.NODE_OPERATION.values().length];
 		for(Graph.NODE_OPERATION n : Graph.NODE_OPERATION.values()) {
+			if(n == NODE_OPERATION.INPUT) { continue; }
 			// Expecting OpenCL code to define op_ABS, op_MATMUL, etc.
 			this.kernels[n.ordinal()] = clCreateKernel(program, GPUGraph.KERNEL_OPERATION_PREFIX + n.name(), null);
 		}
@@ -81,12 +88,44 @@ public class GPUGraph extends Graph {
 		// Read output data.
 	}
 
+	public static String buildProgram() {
+		StringBuilder prog = new StringBuilder();
+
+		// Unary ops.
+		// ABS, EXP, INVERT, LOG, NEGATE, POWER2, SIGMOID, TANH
+		prog.append("#define ELEMENT_UNARY_OP(NAME, A) __kernel void NAME (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = A(src[gid]); }\n");
+		prog.append("ELEMENT_UNARY_OP(op_ABS, abs)\n");
+		prog.append("ELEMENT_UNARY_OP(op_EXP, exp)\n");
+		prog.append("ELEMENT_UNARY_OP(op_INVERT, 1.0/)\n");
+		prog.append("ELEMENT_UNARY_OP(op_LOG, log)\n");
+		prog.append("ELEMENT_UNARY_OP(op_NEGATE, -)\n");
+		prog.append("ELEMENT_UNARY_OP(op_POWER2, exp2)\n");
+		prog.append("ELEMENT_UNARY_OP(op_TANH, tanh)\n");
+
+		// Binary ops.
+		// ADD, MULTIPLY, MATRIXMULTIPLY, POWER, SUBTRACT,
+		prog.append("__kernel void op_ADD(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = srcA[gid]+srcB[gid]; }\n");
+		prog.append("__kernel void op_MULTIPLY(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = srcA[gid]*srcB[gid]; }\n");
+		prog.append("__kernel void op_POWER(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = pow(srcA[gid], srcB[0]); }\n");
+		prog.append("__kernel void op_SUBTRACT(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = srcA[gid]-srcB[gid]; }\n");
+
+		prog.append("__kernel void op_MATRIXMULTIPLY(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = 0; }\n");
+
+		// Special ops.
+		// INPUT, TRANSPOSE, TRACE
+		prog.append("__kernel void op_TRANSPOSE(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = 0; }\n");
+		prog.append("__kernel void op_TRACE(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = 0; }\n");
+
+		return prog.toString();
+	}
+
 	public static String loadProgramSource() {
+		// TODO: This isn't working well.
 		BufferedReader br = null;
 		String finalSource = "";
 
 		try {
-			File sourceFile = new File(GPUGraph.class.getClassLoader().getResource("gpu_graph_ops.cl").toURI());
+			File sourceFile = new File(GPUGraph.class.getResource("/cl/gpu_ops.cl").toURI());
 			StringBuilder result = new StringBuilder();
 			br = new BufferedReader(new FileReader(sourceFile));
 			String line = br.readLine();
