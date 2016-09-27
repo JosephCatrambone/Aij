@@ -1,5 +1,7 @@
 package com.josephcatrambone.aij;
 
+import java.io.*;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
@@ -11,7 +13,7 @@ import org.jocl.*;
  * Created by jcatrambone on 9/19/16.
  */
 public class GPUGraph extends Graph {
-	public static final KERNEL_OPERATION_PREFIX = "op_";
+	public static final String KERNEL_OPERATION_PREFIX = "op_";
 
 	private cl_context context;
 	private cl_command_queue commandQueue;
@@ -50,6 +52,9 @@ public class GPUGraph extends Graph {
 		// Get devices.
 		int[] deviceCountArray = new int[1];
 		clGetDeviceIDs(platform, deviceType, 0, null, deviceCountArray);
+		int deviceCount = deviceCountArray[0];
+		cl_device_id[] devices = new cl_device_id[deviceCount];
+		clGetDeviceIDs(platform, deviceType, deviceCount, devices, null);
 		cl_device_id device = devices[deviceIndex];
 
 		// Get a context for the device.
@@ -59,6 +64,7 @@ public class GPUGraph extends Graph {
 		this.commandQueue = clCreateCommandQueue(this.context, device, 0, null);
 
 		// Create the program from the source in the parent directory.
+		String programSource = GPUGraph.loadProgramSource();
 		this.program = clCreateProgramWithSource(context, 1, new String[]{ programSource }, null, null);
 
 		// Create the kernels for each function.
@@ -73,6 +79,34 @@ public class GPUGraph extends Graph {
 		// Set the work-item dimensions.
 		// Execute kernels.
 		// Read output data.
+	}
+
+	public static String loadProgramSource() {
+		BufferedReader br = null;
+		String finalSource = "";
+
+		try {
+			File sourceFile = new File(GPUGraph.class.getClassLoader().getResource("gpu_graph_ops.cl").toURI());
+			StringBuilder result = new StringBuilder();
+			br = new BufferedReader(new FileReader(sourceFile));
+			String line = br.readLine();
+			while(line != null) {
+				result.append(line + "\n");
+				line = br.readLine();
+			}
+			finalSource = result.toString();
+			br.close();
+		} catch(NullPointerException npe) {
+			System.err.println("Problem loading CL Code: " + npe);
+		} catch(URISyntaxException urise) {
+			System.err.println("Invalid URL: " + urise);
+		} catch(FileNotFoundException fnfe) {
+			System.err.println("File not found: " + fnfe);
+		} catch(IOException ioe) {
+			System.err.println("IO Exception: " + ioe);
+		}
+
+		return finalSource;
 	}
 
 	protected void finalize() throws Throwable {
@@ -110,6 +144,9 @@ public class GPUGraph extends Graph {
 	@Override
 	public float[][] getGradient(HashMap<Integer, float[]> inputs, int node) {
 		getOutput(inputs, node); // Run forward.
+
+		// If there is memory on the GPU already allocated, free it.
+		// For each of the adjoints, reset to zero..
 
 		adjoint = new float[this.names.size()][];
 		// Starting adjoint is ones.
