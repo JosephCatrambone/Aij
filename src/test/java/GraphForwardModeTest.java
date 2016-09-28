@@ -1,18 +1,18 @@
-import com.josephcatrambone.aij.CPUGraph;
-import com.josephcatrambone.aij.Dimension;
-import com.josephcatrambone.aij.Graph;
+import com.josephcatrambone.aij.*;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.function.UnaryOperator;
+import java.util.function.BinaryOperator;
 
 /**
  * Created by jcatrambone on 9/13/16.
  */
 public class GraphForwardModeTest {
+	final float TOLERANCE = 0.00001f;
 	public Graph makeGraph() {
-		return new CPUGraph(); // For fast switching to GPU tests.
+		return new GPUGraph(); // For fast switching to GPU tests.
 	}
 
 	public void testOpGradient(Graph.NODE_OPERATION op, float xStep, float xRange, float threshold) {
@@ -39,21 +39,47 @@ public class GraphForwardModeTest {
 		}
 	}
 
+	public void testUnaryOp(Graph.NODE_OPERATION op, float in, float out) {
+		Graph g = makeGraph();
+		int x = g.addInput("x", new Dimension(1, 1));
+		int a = g.addNode("a", op, new int[]{x});
+		HashMap<Integer, float[]> inputs = new HashMap<>();
+		inputs.put(x, new float[]{in});
+		org.junit.Assert.assertArrayEquals(new float[]{out}, g.getOutput(inputs, a), TOLERANCE);
+	}
+
+	public void testBinaryOp(Graph.NODE_OPERATION op, float inA, float inB, float out) {
+		Graph g = makeGraph();
+		int x = g.addInput("x", new Dimension(1, 1));
+		int y = g.addInput("y", new Dimension(1, 1));
+		int a = g.addNode("a", op, new int[]{x, y});
+		HashMap<Integer, float[]> inputs = new HashMap<>();
+		inputs.put(x, new float[]{inA});
+		inputs.put(y, new float[]{inB});
+		org.junit.Assert.assertArrayEquals(new float[]{out}, g.getOutput(inputs, a), TOLERANCE);
+	}
+
 	@Test
 	public void testAddGrad() {
 		testOpGradient(Graph.NODE_OPERATION.ADD, 0.1f, -10.0f, 0.001f);
 	}
 
 	@Test
-	public void testAdd() {
-		Graph g = makeGraph();
-		int x = g.addInput("x", new Dimension(1, 1));
-		int y = g.addInput("y", new Dimension(1, 1));
-		int a = g.addNode("a", Graph.NODE_OPERATION.ADD, new int[]{x, y});
-		HashMap<Integer, float[]> inputs = new HashMap<>();
-		inputs.put(x, new float[]{1});
-		inputs.put(y, new float[]{2});
-		org.junit.Assert.assertArrayEquals(new float[]{3}, g.getOutput(inputs, a), 0.0001f);
+	public void testOps() {
+		testBinaryOp(Graph.NODE_OPERATION.ADD, 3, 6, 3+6);
+		testUnaryOp(Graph.NODE_OPERATION.ABS, -3, 3);
+		testUnaryOp(Graph.NODE_OPERATION.ABS, 3, 3);
+		testUnaryOp(Graph.NODE_OPERATION.EXP, 0, 1);
+		testUnaryOp(Graph.NODE_OPERATION.EXP, 1, (float)Math.exp(1));
+		testUnaryOp(Graph.NODE_OPERATION.INVERT, 2.0f, 0.5f);
+		testUnaryOp(Graph.NODE_OPERATION.LOG, 8, (float)Math.log(8.0f));
+		testBinaryOp(Graph.NODE_OPERATION.MULTIPLY, 5, 6, 5*6);
+		testUnaryOp(Graph.NODE_OPERATION.NEGATE, 10, -10f);
+		testUnaryOp(Graph.NODE_OPERATION.NEGATE, -10f, 10f);
+		testBinaryOp(Graph.NODE_OPERATION.POWER, 10, 2f, 100f);
+		testUnaryOp(Graph.NODE_OPERATION.POWER2, 10, 100f);
+		testBinaryOp(Graph.NODE_OPERATION.SUBTRACT, 10, 2f, 10f-2f);
+		testUnaryOp(Graph.NODE_OPERATION.TANH, 4, (float)Math.tanh(4.0f));
 	}
 
 	@Test
@@ -132,3 +158,4 @@ public class GraphForwardModeTest {
 		//org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6}, g.getOutput(inputs, a), 0.0001f);
 	}
 }
+

@@ -269,9 +269,9 @@ public class CPUGraph extends Graph {
 				elementBinaryOp(forward[left], forward[right], forward[node], (x,y) -> x-y);
 				break;
 			case MULTIPLY:
-				for(int arg : arguments.get(node)) {
-					elementBinaryOp(forward[arg], forward[node], forward[node], (x,y) -> x*y); // fwd[this] = fwd[this] + fwd[arg]
-				}
+				left = arguments.get(node)[0];
+				right = arguments.get(node)[1];
+				elementBinaryOp(forward[left], forward[right], forward[node], (x,y) -> x*y); // fwd[this] = fwd[this] + fwd[arg]
 				break;
 			case MATRIXMULTIPLY:
 				// MxN -> M rows N columns -> N width, M height.
