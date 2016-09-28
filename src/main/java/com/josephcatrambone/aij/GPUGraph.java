@@ -11,6 +11,7 @@ import static org.jocl.CL.*;
  * Created by jcatrambone on 9/19/16.
  */
 public class GPUGraph extends Graph {
+	public static int BLOCK_SIZE = 16; // Can be changed to update OpenCL Matmul.
 	public static final String KERNEL_FORWARD_PREFIX = "fwd_";
 	public static final String KERNEL_ADJOINT_PREFIX = "adj_";
 
@@ -27,7 +28,7 @@ public class GPUGraph extends Graph {
 
 		final int platformIndex = 0;
 		final int deviceIndex = 0;
-		final long deviceType = CL_DEVICE_TYPE_ALL;
+		final long deviceType = CL_DEVICE_TYPE_GPU; //CL_DEVICE_TYPE_ALL;
 
 		CL.setExceptionsEnabled(true);
 
@@ -109,12 +110,18 @@ public class GPUGraph extends Graph {
 		prog.append("__kernel void fwd_POWER(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = pow(srcA[gid], srcB[0]); }\n");
 		prog.append("__kernel void fwd_SUBTRACT(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = srcA[gid]-srcB[gid]; }\n");
 
+		prog.append("#define BLOCK_SIZE " + GPUGraph.BLOCK_SIZE + "\n");
 		prog.append("__kernel void fwd_MATRIXMULTIPLY(__global float* target, __global float* srcA, __global float* srcB, int widthA, int widthB) { " +
-				"int axis0 = get_global_id(0); " +
-				"int axis1 = get_global_id(1); " +
-				"float accumulator = 0;" +
-				"for(int k=0; k < widthA; k++) { accumulator += srcA[k + axis1*widthA]*srcB[axis0 + k*widthB]; }" +
-				"target[axis0 + axis1*widthB] = accumulator; }\n");
+			"int blockIndexX = get_global_id(0); " +
+			"int blockIndexY = get_global_id(1); " +
+			//"int threadIndexX = get_local_id(0); " +
+			//"int threadIndexY = get_local_id(1); " +
+			"float accumulator = 0;" +
+			"for(int k=0; k < widthA; ++k) {" +
+				//"barrier(CLK_LOCAL_MEM_FENCE);" +
+				"accumulator += srcA[k + blockIndexY*widthA]*srcB[blockIndexX + k*widthB];" +
+			"}" +
+			"target[blockIndexX + blockIndexY*widthB] = accumulator; }\n");
 
 		// Special ops.
 		// INPUT, TRANSPOSE, TRACE
@@ -234,14 +241,17 @@ public class GPUGraph extends Graph {
 		// Set the work size.
 		long[] globalWorkSize = new long[]{getShape(node).size()}; // TODO: This is probably the wrong size.
 		long[] localWorkSize = new long[]{1L};
+		int workDim = 1;
 
 		if(this.ops.get(node) == MATRIXMULTIPLY) { // Set work size and enqueue the extra parameters.
 			clSetKernelArg(this.kernels[MATRIXMULTIPLY.ordinal()], 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
 			clSetKernelArg(this.kernels[MATRIXMULTIPLY.ordinal()], 4, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[1]).getWidth()}));
-			localWorkSize = new long[]{ getShape(arguments.get(node)[1]).getWidth(), getShape(arguments.get(node)[0]).getHeight(),  };
+			localWorkSize = new long[]{ 1, 1 }; // TODO: Tune this.
+			globalWorkSize = new long[]{ getShape(node).getWidth(), getShape(node).getHeight() };
+			workDim = 2;
 		}
 
-		clEnqueueNDRangeKernel(commandQueue, this.kernels[this.ops.get(node).ordinal()], 1, null, globalWorkSize, localWorkSize, 0, null, null);
+		clEnqueueNDRangeKernel(commandQueue, this.kernels[this.ops.get(node).ordinal()], workDim, null, globalWorkSize, localWorkSize, 0, null, null);
 	}
 }
 

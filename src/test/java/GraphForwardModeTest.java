@@ -3,8 +3,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.function.UnaryOperator;
-import java.util.function.BinaryOperator;
+import java.util.Random;
 
 /**
  * Created by jcatrambone on 9/13/16.
@@ -130,7 +129,9 @@ public class GraphForwardModeTest {
 				4, 5, 6,
 				7, 8, 9
 		});
-		org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6, 7, 8, 9}, g.getOutput(inputs, a), 0.0001f);
+		float[] out = g.getOutput(inputs, a);
+		System.out.println("I * A = " + Arrays.toString(out));
+		org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6, 7, 8, 9}, out, 0.0001f);
 
 		// Clear and start over.
 		g = makeGraph();
@@ -140,21 +141,35 @@ public class GraphForwardModeTest {
 		inputs = new HashMap<>();
 
 		inputs.put(x, new float[]{
-				1, 0,
+				1, 2,
 				0, 1
 		});
 		inputs.put(y, new float[]{
 				1, 2, 3,
 				4, 5, 6,
 		});
-		org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6}, g.getOutput(inputs, a), 0.0001f);
+		org.junit.Assert.assertArrayEquals(new float[]{9, 12, 15, 4, 5, 6}, g.getOutput(inputs, a), 0.0001f);
 	}
 
 	@Test
-	public void testForwardMethods() {
+	public void bigMatrixMultiply() {
+		final int size = 10000;
+		Random random = new Random();
 		Graph g = makeGraph();
-		int x = g.addNode("x", Graph.NODE_OPERATION.INPUT, null, new Dimension(3, 3));
-
+		int x = g.addInput("x", new Dimension(size, size));
+		int y = g.addInput("y", new Dimension(size, size));
+		int z = g.addNode("mmul", Graph.NODE_OPERATION.MATRIXMULTIPLY, new int[]{x, y});
+		HashMap<Integer, float[]> inputs = new HashMap<>();
+		inputs.put(x, new float[size*size]);
+		inputs.put(y, new float[size*size]);
+		for(int i=0; i < size*size; i++) {
+			inputs.get(x)[i] = (float)random.nextGaussian();
+			inputs.get(y)[i] = (float)random.nextGaussian();
+		}
+		long startTime = System.currentTimeMillis();
+		float[] res = g.getOutput(inputs, z);
+		long endTime = System.currentTimeMillis();
+		System.out.println("Matrix multiply with " + size + "^2 elements: " + (endTime - startTime) + " ms.");
 		//org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6}, g.getOutput(inputs, a), 0.0001f);
 	}
 }
