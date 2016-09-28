@@ -125,7 +125,7 @@ public class GPUGraph extends Graph {
 
 		// Special ops.
 		// INPUT, TRANSPOSE, TRACE
-		prog.append("__kernel void fwd_TRANSPOSE(__global float* target, __global float* srcA) { int gid = get_global_id(0); target[gid] = 0; }\n");
+		prog.append("__kernel void fwd_TRANSPOSE(__global float* target, __global float* src, int srcWidth, int srcHeight) { int x = get_global_id(0); int y = get_global_id(1); target[y + x*srcHeight] = src[x + y*srcWidth]; }\n");
 		prog.append("__kernel void fwd_TRACE(__global float* target, __global float* srcA) { int gid = get_global_id(0); target[gid] = 0; }\n");
 
 		return prog.toString();
@@ -247,6 +247,12 @@ public class GPUGraph extends Graph {
 			clSetKernelArg(this.kernels[MATRIXMULTIPLY.ordinal()], 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
 			clSetKernelArg(this.kernels[MATRIXMULTIPLY.ordinal()], 4, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[1]).getWidth()}));
 			localWorkSize = new long[]{ 1, 1 }; // TODO: Tune this.
+			globalWorkSize = new long[]{ getShape(node).getWidth(), getShape(node).getHeight() };
+			workDim = 2;
+		} else if(this.ops.get(node) == TRANSPOSE) {
+			clSetKernelArg(this.kernels[TRANSPOSE.ordinal()], 2, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
+			clSetKernelArg(this.kernels[TRANSPOSE.ordinal()], 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getHeight()}));
+			localWorkSize = new long[]{ 1, 1 };
 			globalWorkSize = new long[]{ getShape(node).getWidth(), getShape(node).getHeight() };
 			workDim = 2;
 		}

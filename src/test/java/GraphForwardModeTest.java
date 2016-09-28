@@ -96,7 +96,7 @@ public class GraphForwardModeTest {
 			1, 0, 1,
 			0, 1, 0
 		});
-		org.junit.Assert.assertArrayEquals(new float[]{2, 2, 4, 4, 6, 6}, g.getOutput(inputs, a), 0.0001f);
+		org.junit.Assert.assertArrayEquals(new float[]{2, 2, 4, 4, 6, 6}, g.getOutput(inputs, a), TOLERANCE);
 	}
 
 	@Test
@@ -109,7 +109,9 @@ public class GraphForwardModeTest {
 				1, 2, 3,
 				0, 0, 0
 		});
-		org.junit.Assert.assertArrayEquals(new float[]{1, 0, 2, 0, 3, 0}, g.getOutput(inputs, xt), 0.0001f);
+		float[] out = g.getOutput(inputs, xt);
+		System.out.println(Arrays.toString(out));
+		org.junit.Assert.assertArrayEquals(new float[]{1, 0, 2, 0, 3, 0}, out, TOLERANCE);
 	}
 
 	@Test
@@ -131,7 +133,7 @@ public class GraphForwardModeTest {
 		});
 		float[] out = g.getOutput(inputs, a);
 		System.out.println("I * A = " + Arrays.toString(out));
-		org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6, 7, 8, 9}, out, 0.0001f);
+		org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6, 7, 8, 9}, out, TOLERANCE);
 
 		// Clear and start over.
 		g = makeGraph();
@@ -148,12 +150,12 @@ public class GraphForwardModeTest {
 				1, 2, 3,
 				4, 5, 6,
 		});
-		org.junit.Assert.assertArrayEquals(new float[]{9, 12, 15, 4, 5, 6}, g.getOutput(inputs, a), 0.0001f);
+		org.junit.Assert.assertArrayEquals(new float[]{9, 12, 15, 4, 5, 6}, g.getOutput(inputs, a), TOLERANCE);
 	}
 
 	@Test
 	public void bigMatrixMultiply() {
-		final int size = 10000;
+		final int size = 1000;
 		Random random = new Random();
 		Graph g = makeGraph();
 		int x = g.addInput("x", new Dimension(size, size));
@@ -170,7 +172,7 @@ public class GraphForwardModeTest {
 		float[] res = g.getOutput(inputs, z);
 		long endTime = System.currentTimeMillis();
 		System.out.println("Matrix multiply with " + size + "^2 elements: " + (endTime - startTime) + " ms.");
-		//org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6}, g.getOutput(inputs, a), 0.0001f);
+		//org.junit.Assert.assertArrayEquals(new float[]{1, 2, 3, 4, 5, 6}, g.getOutput(inputs, a), TOLERANCE);
 	}
 }
 
