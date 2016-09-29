@@ -158,7 +158,7 @@ public class CPUGraph extends Graph {
 				left = arguments.get(node)[0];
 				leftShape = getShape(left);
 				for(int i=0; i < leftShape.size(); i++) {
-					adjoint[left][i] = adjoint[node][i] * -(forward[left][i]*forward[left][i]);
+					adjoint[left][i] = adjoint[node][i] * (-1.0f/(forward[left][i]*forward[left][i]));
 				}
 				break;
 			case LOG:

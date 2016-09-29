@@ -11,7 +11,7 @@ import static org.jocl.CL.*;
  * Created by jcatrambone on 9/19/16.
  */
 public class GPUGraph extends Graph {
-	public static int BLOCK_SIZE = 16; // Can be changed to update OpenCL Matmul.
+	public static final int BLOCK_SIZE = 1;
 	public static final String KERNEL_FORWARD_PREFIX = "fwd_";
 	public static final String KERNEL_ADJOINT_PREFIX = "adj_";
 
@@ -58,8 +58,8 @@ public class GPUGraph extends Graph {
 		this.context = clCreateContext(contextProperties, 1, new cl_device_id[]{ device }, null, null, null);
 
 		// Create a command queue.
-		cl_queue_properties commandQueueProperties = new cl_queue_properties();
 		try {
+			cl_queue_properties commandQueueProperties = new cl_queue_properties();
 			this.commandQueue = clCreateCommandQueueWithProperties(this.context, device, commandQueueProperties, null);
 		} catch(UnsupportedOperationException uoe) {
 			this.commandQueue = clCreateCommandQueue(this.context, device, 0, null); // Deprecated.
@@ -89,28 +89,50 @@ public class GPUGraph extends Graph {
 		// Read output data.
 	}
 
+	private static String makeForwardUnaryOpWrapper(String name, String sourceOp) {
+		// Used to avoid naming conflicts.
+		return "__kernel void " + KERNEL_FORWARD_PREFIX + name + "(__global float* restrict target, __global const float* restrict src) { int gid = get_global_id(0); target[gid] = "+ sourceOp + "}\n";
+	}
+
+	private static String makeForwardBinaryOpWrapper(String name, String sourceOp) {
+		return "__kernel void " + KERNEL_FORWARD_PREFIX + name + "(__global float* restrict target, __global const float* srcA, __global const float* srcB) { int gid = get_global_id(0); target[gid] = "+ sourceOp + "}\n";
+	}
+
+	private static String makeAdjointUnaryOpWrapper(String name, String derivativeOperation) {
+		// Let the first argument by the adjoin values we're going to run, the second value be the parent's ajoint, and the third be the value forward.
+		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
+		// Forward is the value going forward.  Don't have inputs, though.
+		// derivativeOperation should be something like parentAdjoint[gid]*derivative(foward[gid])
+		return "__kernel void " + KERNEL_ADJOINT_PREFIX + name + "(__global float* restrict targetAdjoint, __global const float* restrict parentAdjoint, __global const float* forward) { int gid = get_global_id(0); targetAdjoint[gid] += "+ derivativeOperation + "}\n";
+	}
+
 	public static String buildProgram() {
 		StringBuilder prog = new StringBuilder();
 
+		prog.append("#define BLOCK_SIZE " + GPUGraph.BLOCK_SIZE + "\n");
+		// TODO: Vectorize ops.
+		// kernel void op_ABS4(global float4 *target, global const float4 *src)
+
+		// FORWARD OPERATIONS
+
 		// Unary ops.
 		// ABS, EXP, INVERT, LOG, NEGATE, POWER2, SIGMOID, TANH
-		prog.append("__kernel void fwd_ABS (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = fabs(src[gid]); }\n");
-		prog.append("__kernel void fwd_EXP (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = exp(src[gid]); }\n");
-		prog.append("__kernel void fwd_INVERT (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = 1.0/src[gid]; }\n");
-		prog.append("__kernel void fwd_LOG (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = log(src[gid]); }\n");
-		prog.append("__kernel void fwd_NEGATE (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = -src[gid]; }\n");
-		prog.append("__kernel void fwd_POWER2 (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = src[gid]*src[gid]; }\n");
-		prog.append("__kernel void fwd_SIGMOID (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = 1.0/(1.0+exp(-src[gid])); }\n");
-		prog.append("__kernel void fwd_TANH (__global float* target, __global float* src) { int gid = get_global_id(0); target[gid] = tanh(src[gid]); }\n");
+		prog.append(makeForwardUnaryOpWrapper("ABS", "fabs(src[gid]);"));
+		prog.append(makeForwardUnaryOpWrapper("EXP", "exp(src[gid]);"));
+		prog.append(makeForwardUnaryOpWrapper("INVERT", "1.0f/(src[gid]);"));
+		prog.append(makeForwardUnaryOpWrapper("LOG", "log(src[gid]);"));
+		prog.append(makeForwardUnaryOpWrapper("NEGATE", "-(src[gid]);"));
+		prog.append(makeForwardUnaryOpWrapper("POWER2", "src[gid]*src[gid];"));
+		prog.append(makeForwardUnaryOpWrapper("SIGMOID", "1.0f/(1.0f+exp(-src[gid]));"));
+		prog.append(makeForwardUnaryOpWrapper("TANH", "tanh(src[gid]);"));
 
 		// Binary ops.
 		// ADD, MULTIPLY, MATRIXMULTIPLY, POWER, SUBTRACT,
-		prog.append("__kernel void fwd_ADD(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = srcA[gid]+srcB[gid]; }\n");
-		prog.append("__kernel void fwd_MULTIPLY(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = srcA[gid]*srcB[gid]; }\n");
-		prog.append("__kernel void fwd_POWER(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = pow(srcA[gid], srcB[0]); }\n");
-		prog.append("__kernel void fwd_SUBTRACT(__global float* target, __global float* srcA, __global float* srcB) { int gid = get_global_id(0); target[gid] = srcA[gid]-srcB[gid]; }\n");
+		prog.append(makeForwardBinaryOpWrapper("ADD", "srcA[gid]+srcB[gid];"));
+		prog.append(makeForwardBinaryOpWrapper("MULTIPLY", "srcA[gid]*srcB[gid];"));
+		prog.append(makeForwardBinaryOpWrapper("POWER", "pow(srcA[gid], srcB[0]);"));
+		prog.append(makeForwardBinaryOpWrapper("SUBTRACT", "srcA[gid]-srcB[gid];"));
 
-		prog.append("#define BLOCK_SIZE " + GPUGraph.BLOCK_SIZE + "\n");
 		prog.append("__kernel void fwd_MATRIXMULTIPLY(__global float* target, __global float* srcA, __global float* srcB, int widthA, int widthB) { " +
 			"int blockIndexX = get_global_id(0); " +
 			"int blockIndexY = get_global_id(1); " +
@@ -125,8 +147,86 @@ public class GPUGraph extends Graph {
 
 		// Special ops.
 		// INPUT, TRANSPOSE, TRACE
-		prog.append("__kernel void fwd_TRANSPOSE(__global float* target, __global float* src, int srcWidth, int srcHeight) { int x = get_global_id(0); int y = get_global_id(1); target[y + x*srcHeight] = src[x + y*srcWidth]; }\n");
+		prog.append("__kernel void fwd_TRANSPOSE(__global float* target, __global float* src, int srcWidth, int srcHeight) { int g = get_global_id(0); target[g/srcWidth + (g%srcWidth)*srcHeight] = src[(g/srcWidth) + g]; }\n");
 		prog.append("__kernel void fwd_TRACE(__global float* target, __global float* srcA) { int gid = get_global_id(0); target[gid] = 0; }\n");
+
+		/*
+		 * Quick notes on TRANSPOSE.
+		 * If g is in float[data], x = g%width, y = g/width.
+		 * Want: b[y + x*b_width] := a[x + y*a_width].  b[i,j] = a[j,i].
+		 * b_width = a_height
+		 * y = g/a_width.  x = g%a_width.
+		 * b[g/a_width + (g%a_width)*a_height] = a[(g%a_width) + (g/a_width)*a_width] = a[(g%a_width) + g]
+		 */
+
+		// ADJOINT/BACKWARDS OPERATIONS.
+
+		// ADD: adjoint[arg][i] += adjoint[node][i]; // z := x + y -> x_adj += z, y_adj += z.
+		prog.append(makeAdjointUnaryOpWrapper("ADD", "parentAdjoint[gid];"));
+
+		// EXP: adjoint[left][i] = adjoint[node][i]*(float)Math.exp(forward[left][i]);
+		prog.append(makeAdjointUnaryOpWrapper("EXP", "parentAdjoint[gid]*exp(forward[gid]);"));
+
+		// SUB: adjoint[left][i] += adjoint[node][i];
+		// SUB: adjoint[right][i] += -adjoint[node][i];
+
+		// MULTIPLY: // z = x*y. dz/da = d/da x*y + x * d/day  x_adj += z_adj*y.  y_adj += z_adj*x.
+		// z = x1*y1, x2*y2, x3*y3
+		// x1_adj += z_adj*y1
+		// x2_adj += z_adj*y2
+		//adjoint[left][i] += adjoint[node][i] * forward[right][i];
+		//adjoint[right][i] += adjoint[node][i] * forward[left][i];
+
+		// Matmul:
+		// First, left = C_adj (x) B_transpose.
+		//accumulator += adjoint[node][k + y*thisShape.getWidth()] * forward[right][k*rightShape.getHeight() + y]; // Need to transpose forward.
+		//adjoint[left][x + y*leftShape.getWidth()] += accumulator;
+		// right = A_transpose * C_adj. -> leftShape rows x this cols -> left height x this width
+		// A_transpose * C_adj -> A(mxn) * C(mxo) -> A(nxm) * C(mxo)
+		//float fwd = forward[left][y + k*leftShape.getWidth()];
+		//float adj = adjoint[node][x + k*thisShape.getWidth()];
+		//adjoint[right][x + y*rightShape.getWidth()] = accumulator;
+
+		// INVERT:
+		// y := EW(x, op) -> y = 1/x
+		// f(x) = x^-1.  df(x) = -x^2
+		//adjoint[left][i] = adjoint[node][i] * -(forward[left][i]*forward[left][i]);
+		prog.append(makeAdjointUnaryOpWrapper("INVERT", "parentAdjoint[gid]* (-1.0f/(forward[gid]*forward[gid]));"));
+
+		// LOG:
+		// y := EW(x, op) -> y = log(x)
+		// f(x) = log(x).  df(x) = 1/x
+		// x_adj += y_adj/x
+		//adjoint[left][i] = adjoint[node][i]/forward[left][i];
+
+		//NEGATE:
+		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
+		// y = -x.  x_adj = -y_adj .
+		//adjoint[left][i] = -adjoint[node][i];
+
+		//POWER:
+		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
+		// y = x^n.  x_adj = y_adj * (2*x^(n-1)) for all.
+		//adjoint[left][i] = adjoint[node][i]*(forward[right][0] * (float)Math.pow(forward[left][i], forward[right][0]-1));
+
+		//POWER2:
+		//adjoint[left][i] = adjoint[node][i]*(2.0f * forward[left][i]);
+
+		//TANH:
+		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
+		// 1 - tanh^2
+		//float th = (float)Math.tanh(forward[left][i]);
+		//adjoint[left][i] += adjoint[node][i]*(1.0f - (th*th));
+
+		//SIGMOID:
+		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
+		// sig(x) * (1-sig(x))
+		//float sigX = (float)1.0f/(1.0f+(float)Math.exp(-forward[left][i]));
+		//adjoint[left][i] += adjoint[node][i]*(sigX * (1.0f - sigX));
+
+		//ABS:
+		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
+		//adjoint[left][i] += adjoint[node][i]*dAbs;
 
 		return prog.toString();
 	}
@@ -170,10 +270,12 @@ public class GPUGraph extends Graph {
 		forward = new cl_mem[this.names.size()];
 
 		// Copy the inputs to input buffers.
-		for(int i=0; i < node; i++) {
+		for(int i=0; i <= node; i++) {
 			if(ops.get(i) == NODE_OPERATION.INPUT) {
 				Pointer inputPtr = Pointer.to(inputs.get(i));
 				forward[i] = clCreateBuffer(this.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, Sizeof.cl_float*getShape(i).size(), inputPtr, null);
+			} else {
+				forward[i] = clCreateBuffer(this.context, CL_MEM_READ_WRITE, Sizeof.cl_float*getShape(i).size(), null, null);
 			}
 		}
 
@@ -197,27 +299,30 @@ public class GPUGraph extends Graph {
 		freeMemoryObjects(adjoint);
 		adjoint = new cl_mem[this.names.size()];
 
-		/*
-		// Starting adjoint is ones.
-		adjoint[node] = new float[shapes.get(node).size()];
-		for(int i=0; i < adjoint[node].length; i++) { adjoint[node][i] = 1.0f; }
+		// Pre-allocate adjoint memory blocks.
+		float[] ones = new float[] { 1.0f };
+		float[] zeros = new float[]{ 0.0f };
+		for(int i=node; i >= 0; i--) {
+			adjoint[i] = clCreateBuffer(this.context, CL_MEM_READ_WRITE, Sizeof.cl_float*getShape(i).size(), null, null);
+			// Init adjoints of this node to ones. Init children to zero.
+			clEnqueueFillBuffer(this.commandQueue, adjoint[i], Pointer.to(i == node ? ones : zeros), 1, 0, Sizeof.cl_float*getShape(i).size(), 0, null, null);
+		}
+
 		// Trace evaluation in reverse order.
 		evaluateAdjointChildren(inputs, node);
-		*/
-		return null;
+
+		// Copy adjoints back from memory.
+		float[][] result = null;
+		//clEnqueueReadBuffer(commandQueue, forward[node], CL_TRUE, 0, result.length * Sizeof.cl_float, Pointer.to(result), 0, null, null);
+		return result;
 	}
 
 	private void evaluateAdjointChildren(HashMap<Integer, float[]> inputs, int node) {
-		// Each of these operations must operate on its child value, setting the adjoints.
-		// From "GPU-accelerated adjoint algorithmic differentiation" by Gremse et al. (2016)
-		// ??? Adjoint(X) = Adjoint(Parent(X)) * f'(x)
-		for(int arg : arguments.get(node)) {
-			// Allocate buffers.
-			if(adjoint[arg] == null) {
-				//adjoint[arg] = new float[getShape(arg).size()];
-			}
-		}
 		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
+		// Populate this node's children's adjoint values.
+
+		// Copy from above: Let the first argument by the adjoin values we're going to run, the second value be the parent's ajoint, and the third be the value forward.
+		// Execute the derivative op.
 
 		// Evaluate the children's children.
 		for(int arg : arguments.get(node)) {
@@ -227,18 +332,17 @@ public class GPUGraph extends Graph {
 
 	private void evaluateForward(HashMap<Integer, float[]> inputs, int node) {
 		if(this.ops.get(node) == INPUT) {
-			// IGNORE!  We already allocated and copied.
 			return;
 		}
 
-		// Allocate memory for result.  First argument is ALWAYS the target.
-		forward[node] = clCreateBuffer(this.context, CL_MEM_READ_WRITE, Sizeof.cl_float*getShape(node).size(), null, null);
+		// First argument is ALWAYS the target.  Other arguments are, well, arguments.
 		clSetKernelArg(this.kernels[this.ops.get(node).ordinal()], 0, Sizeof.cl_mem, Pointer.to(forward[node]));
 		for(int i=0; i < arguments.get(node).length; i++) {
 			clSetKernelArg(this.kernels[this.ops.get(node).ordinal()], i+1, Sizeof.cl_mem, Pointer.to(forward[arguments.get(node)[i]]));
 		}
 
-		// Set the work size.
+		// Set the work size.  Global work size is the number of things you want done.  It is always 0-(N-1).
+		// Local work size is a value in 0-local_size.
 		long[] globalWorkSize = new long[]{getShape(node).size()}; // TODO: This is probably the wrong size.
 		long[] localWorkSize = new long[]{1L};
 		int workDim = 1;
@@ -252,12 +356,10 @@ public class GPUGraph extends Graph {
 		} else if(this.ops.get(node) == TRANSPOSE) {
 			clSetKernelArg(this.kernels[TRANSPOSE.ordinal()], 2, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
 			clSetKernelArg(this.kernels[TRANSPOSE.ordinal()], 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getHeight()}));
-			localWorkSize = new long[]{ 1, 1 };
-			globalWorkSize = new long[]{ getShape(node).getWidth(), getShape(node).getHeight() };
-			workDim = 2;
 		}
 
 		clEnqueueNDRangeKernel(commandQueue, this.kernels[this.ops.get(node).ordinal()], workDim, null, globalWorkSize, localWorkSize, 0, null, null);
 	}
 }
+
 
