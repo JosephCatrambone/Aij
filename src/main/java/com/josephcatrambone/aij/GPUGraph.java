@@ -18,7 +18,7 @@ public class GPUGraph extends Graph {
 	private cl_context context;
 	private cl_command_queue commandQueue;
 	private cl_program program;
-	private cl_kernel[] kernels; // Indexed into the graph node types.
+	private HashMap<String, cl_kernel> kernels; // Indexed into the graph node types.  Need to index based on op name.
 	
 	cl_mem[] forward; // We copy the CPU memory inputs to these.
 	cl_mem[] adjoint;
@@ -74,12 +74,13 @@ public class GPUGraph extends Graph {
 		//clGetProgramBuildInfo(this.program, device, CL_PROGRAM_BUILD_LOG, 1, 0, )
 
 		// Create the kernels for each function.
-		this.kernels = new cl_kernel[Graph.NODE_OPERATION.values().length];
+		this.kernels = new HashMap<>();
 		for(Graph.NODE_OPERATION n : Graph.NODE_OPERATION.values()) {
 			if(n == NODE_OPERATION.INPUT) { continue; }
 			// Expecting OpenCL code to define op_ABS, op_MATMUL, etc.
 			int[] kernelBuildErrorCodes = new int[1];
-			this.kernels[n.ordinal()] = clCreateKernel(program, GPUGraph.KERNEL_FORWARD_PREFIX+ n.name(), kernelBuildErrorCodes);
+			this.kernels.put(GPUGraph.KERNEL_FORWARD_PREFIX + n.name(), clCreateKernel(program, GPUGraph.KERNEL_FORWARD_PREFIX+ n.name(), kernelBuildErrorCodes));
+			this.kernels.put(GPUGraph.KERNEL_ADJOINT_PREFIX + n.name(), clCreateKernel(program, GPUGraph.KERNEL_ADJOINT_PREFIX+ n.name(), kernelBuildErrorCodes));
 		}
 
 		// Allocate memory for the objects.
@@ -104,6 +105,13 @@ public class GPUGraph extends Graph {
 		// Forward is the value going forward.  Don't have inputs, though.
 		// derivativeOperation should be something like parentAdjoint[gid]*derivative(foward[gid])
 		return "__kernel void " + KERNEL_ADJOINT_PREFIX + name + "(__global float* restrict targetAdjoint, __global const float* restrict parentAdjoint, __global const float* forward) { int gid = get_global_id(0); targetAdjoint[gid] += "+ derivativeOperation + "}\n";
+	}
+
+	private static String makeAdjointBinaryOpWrapper(String name, String operation) {
+		// First argument is left adjoint.  Second argument is right adjoint.  Third arg is parent adjoint.  Fourth argument is left forward.  Fifth is right forward.  Sixth is op.
+		// Available variables: g, leftAdjoint, rightAdjoint, parentAdjoint, leftForward, rightForward
+		// Should be something like leftAdjoint[g] += foo(bar(parentAdjoint));
+		return "__kernel void " + KERNEL_ADJOINT_PREFIX + name + "(__global float* restrict leftAdjoint, __global float* restrict rightAdjoint, __global const float* restrict parentAdjoint, __global const float* leftForward, __global const float* rightForward) { int g = get_global_id(0); "+ operation + "}\n";
 	}
 
 	public static String buildProgram() {
@@ -133,7 +141,7 @@ public class GPUGraph extends Graph {
 		prog.append(makeForwardBinaryOpWrapper("POWER", "pow(srcA[gid], srcB[0]);"));
 		prog.append(makeForwardBinaryOpWrapper("SUBTRACT", "srcA[gid]-srcB[gid];"));
 
-		prog.append("__kernel void fwd_MATRIXMULTIPLY(__global float* target, __global float* srcA, __global float* srcB, int widthA, int widthB) { " +
+		prog.append("__kernel void fwd_MATRIXMULTIPLY(__global float* restrict target, __global const float* restrict srcA, __global const float* restrict srcB, int widthA, int widthB) { " +
 			"int blockIndexX = get_global_id(0); " +
 			"int blockIndexY = get_global_id(1); " +
 			//"int threadIndexX = get_local_id(0); " +
@@ -147,8 +155,8 @@ public class GPUGraph extends Graph {
 
 		// Special ops.
 		// INPUT, TRANSPOSE, TRACE
-		prog.append("__kernel void fwd_TRANSPOSE(__global float* target, __global float* src, int srcWidth, int srcHeight) { int g = get_global_id(0); target[g/srcWidth + (g%srcWidth)*srcHeight] = src[(g/srcWidth) + g]; }\n");
-		prog.append("__kernel void fwd_TRACE(__global float* target, __global float* srcA) { int gid = get_global_id(0); target[gid] = 0; }\n");
+		prog.append("__kernel void fwd_TRANSPOSE(__global float* restrict target, __global float* src, int srcWidth, int srcHeight) { int g = get_global_id(0); target[g/srcWidth + (g%srcWidth)*srcHeight] = src[(g/srcWidth) + g]; }\n");
+		prog.append("__kernel void fwd_TRACE(__global float* restrict target, __global float* srcA) { int gid = get_global_id(0); target[gid] = 0; }\n");
 
 		/*
 		 * Quick notes on TRANSPOSE.
@@ -169,6 +177,7 @@ public class GPUGraph extends Graph {
 
 		// SUB: adjoint[left][i] += adjoint[node][i];
 		// SUB: adjoint[right][i] += -adjoint[node][i];
+		prog.append(makeAdjointBinaryOpWrapper("SUBTRACT", "leftAdjoint[g] += parentAdjoint[g]; rightAdjoint[g] += -parentAdjoint[g];"));
 
 		// MULTIPLY: // z = x*y. dz/da = d/da x*y + x * d/day  x_adj += z_adj*y.  y_adj += z_adj*x.
 		// z = x1*y1, x2*y2, x3*y3
@@ -176,8 +185,10 @@ public class GPUGraph extends Graph {
 		// x2_adj += z_adj*y2
 		//adjoint[left][i] += adjoint[node][i] * forward[right][i];
 		//adjoint[right][i] += adjoint[node][i] * forward[left][i];
+		prog.append(makeAdjointBinaryOpWrapper("MULTIPLY", "leftAdjoint[g] += parentAdjoint[g]*rightForward[g]; rightAdjoint[g] += parentAdjoint[g]*leftForward[g];"));
 
 		// Matmul:
+		// C = AB -> A^ = C^B.T.  B^ = A.TC^
 		// First, left = C_adj (x) B_transpose.
 		//accumulator += adjoint[node][k + y*thisShape.getWidth()] * forward[right][k*rightShape.getHeight() + y]; // Need to transpose forward.
 		//adjoint[left][x + y*leftShape.getWidth()] += accumulator;
@@ -186,6 +197,56 @@ public class GPUGraph extends Graph {
 		//float fwd = forward[left][y + k*leftShape.getWidth()];
 		//float adj = adjoint[node][x + k*thisShape.getWidth()];
 		//adjoint[right][x + y*rightShape.getWidth()] = accumulator;
+		// First argument is left adjoint.  Second argument is right adjoint.  Third arg is parent adjoint.  Fourth argument is left forward.  Fifth is right forward.  Sixth is op.
+		prog.append("__kernel void adj_MATRIXMULTIPLY(__global float* restrict leftAdjoint, __global float* rightAdjoint, __global float* parentAdjoint, __global const float* leftForward, __global const float* rightForward, int leftWidth, int leftHeight, int rightWidth) {" +
+			"int leftX = get_global_id(0);" +
+			"int leftY = get_global_id(1);" +
+			"int rightX = get_global_id(2);" +
+			"int rightY = get_global_id(3);" +
+			"float leftAdjointAccumulator = 0, rightAdjointAccumulator = 0;" +
+		"}");
+		/*
+		// First, left = C_adj (x) B_transpose.
+		for(int y=0; y < leftShape.getHeight(); y++) {
+			for(int x=0; x < leftShape.getWidth(); x++) {
+				// C_adj * B_t
+				float accumulator = 0;
+				for(int k=0; k < thisShape.getWidth(); k++) {
+					//accumulator += forward[left][i + y*leftShape.getWidth()] * forward[right][x + i*rightShape.getWidth()];
+					accumulator += adjoint[node][k + y*thisShape.getWidth()] * forward[right][k*rightShape.getHeight() + y]; // Need to transpose forward.
+					// ____  0 1 2 3 4 5
+					// R:   [a b c d e f]
+					// R_t: [a c b e d f]
+					// R: 2x3 (2 row, 3 col.  w = 3, h = 2.)
+					// R: x + y*w -> x + y*3 -> 0, 1, 2, 3, 4, 5
+					// R_t: x + y*w -> x + y*2 -> [0, 2, 1, 4, 3, 5]
+					// _____ 0  1  2  3  4  5  6  7  8
+					// R:   [a, b, c, d, e, f, g, h, i]
+					// R_t: [a, d, g, b, e, h, c, f, i]
+					// 0, 3, 6, 1, 4, 7, 2, 5, 8
+					// x*w_new + y
+				}
+				adjoint[left][x + y*leftShape.getWidth()] += accumulator;
+			}
+		}
+
+		// right = A_transpose * C_adj. -> leftShape rows x this cols -> left height x this width
+		// A_transpose * C_adj -> A(mxn) * C(mxo) -> A(nxm) * C(mxo)
+		// Result is nxo.  A_columns by C_columns.
+		for(int y=0; y < leftShape.getColumns(); y++) {
+			for(int x=0; x < thisShape.getColumns(); x++) {
+				float accumulator = 0.0f;
+				for(int k=0; k < leftShape.getRows(); k++) {
+					// First row * first column.
+					// Except left is transpose, so we do the first column * first column.
+					float fwd = forward[left][y + k*leftShape.getWidth()];
+					float adj = adjoint[node][x + k*thisShape.getWidth()];
+					accumulator += fwd * adj;
+				}
+				adjoint[right][x + y*rightShape.getWidth()] = accumulator;
+			}
+		}
+		*/
 
 		// INVERT:
 		// y := EW(x, op) -> y = 1/x
@@ -198,35 +259,45 @@ public class GPUGraph extends Graph {
 		// f(x) = log(x).  df(x) = 1/x
 		// x_adj += y_adj/x
 		//adjoint[left][i] = adjoint[node][i]/forward[left][i];
+		prog.append(makeAdjointUnaryOpWrapper("LOG", "parentAdjoint[gid]/forward[gid];"));
 
 		//NEGATE:
 		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
 		// y = -x.  x_adj = -y_adj .
 		//adjoint[left][i] = -adjoint[node][i];
+		prog.append(makeAdjointUnaryOpWrapper("NEGATE", "-parentAdjoint[gid];"));
 
 		//POWER:
 		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
 		// y = x^n.  x_adj = y_adj * (2*x^(n-1)) for all.
 		//adjoint[left][i] = adjoint[node][i]*(forward[right][0] * (float)Math.pow(forward[left][i], forward[right][0]-1));
+		prog.append(makeAdjointBinaryOpWrapper("POWER", "leftAdjoint[g] += parentAdjoint[g]*(rightForward[0] * pow(leftForward[g], rightForward[0]-1));")); // TODO: Generalize from [0] on right.
 
 		//POWER2:
 		//adjoint[left][i] = adjoint[node][i]*(2.0f * forward[left][i]);
+		prog.append(makeAdjointUnaryOpWrapper("POWER2", "parentAdjoint[gid]*(2.0f * forward[gid]);"));
 
 		//TANH:
 		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
 		// 1 - tanh^2
 		//float th = (float)Math.tanh(forward[left][i]);
 		//adjoint[left][i] += adjoint[node][i]*(1.0f - (th*th));
+		prog.append(makeAdjointUnaryOpWrapper("TANH", "parentAdjoint[gid]*(1.0f - (tanh(forward[gid])*tanh(forward[gid])));"));
 
 		//SIGMOID:
 		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
 		// sig(x) * (1-sig(x))
 		//float sigX = (float)1.0f/(1.0f+(float)Math.exp(-forward[left][i]));
 		//adjoint[left][i] += adjoint[node][i]*(sigX * (1.0f - sigX));
+		prog.append(makeAdjointUnaryOpWrapper("SIGMOID", "parentAdjoint[gid]*((1.0f/(1.0f+exp(-forward[gid]))) * (1.0f - (1.0f/(1.0f+exp(-forward[gid])))));"));
 
 		//ABS:
 		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
 		//adjoint[left][i] += adjoint[node][i]*dAbs;
+		prog.append(makeAdjointUnaryOpWrapper("ABS", "parentAdjoint[gid]* (-fabs(forward[gid]));"));
+
+		prog.append("__kernel void adj_TRANSPOSE(__global float* restrict target, __global float* src, int srcWidth, int srcHeight) {}\n");
+		prog.append("__kernel void adj_TRACE(__global float* restrict target, __global float* srcA) {}\n");
 
 		return prog.toString();
 	}
@@ -238,7 +309,7 @@ public class GPUGraph extends Graph {
 			freeMemoryObjects(adjoint);
 
 			// Release kernels.
-			for(cl_kernel k : this.kernels) {
+			for(cl_kernel k : this.kernels.values()) {
 				clReleaseKernel(k);
 			}
 			this.kernels = null;
@@ -323,6 +394,18 @@ public class GPUGraph extends Graph {
 
 		// Copy from above: Let the first argument by the adjoin values we're going to run, the second value be the parent's ajoint, and the third be the value forward.
 		// Execute the derivative op.
+		if(ops.get(node) == MATRIXMULTIPLY) {
+			// Special case.
+		} else {
+			for(int arg : arguments.get(node)) {
+				// Let first argument be the adjoint of this child node.
+				clSetKernelArg(this.kernels.get(KERNEL_ADJOINT_PREFIX + this.ops.get(node).name()), 0, Sizeof.cl_mem, Pointer.to(adjoint[arg]));
+				// Second arg is the parent.
+				clSetKernelArg(this.kernels.get(KERNEL_ADJOINT_PREFIX + this.ops.get(node).name()), 1, Sizeof.cl_mem, Pointer.to(adjoint[node]));
+				// Third arg is the forward value..
+				clSetKernelArg(this.kernels.get(KERNEL_ADJOINT_PREFIX + this.ops.get(node).name()), 2, Sizeof.cl_mem, Pointer.to(forward[arg]));
+			}
+		}
 
 		// Evaluate the children's children.
 		for(int arg : arguments.get(node)) {
@@ -336,9 +419,9 @@ public class GPUGraph extends Graph {
 		}
 
 		// First argument is ALWAYS the target.  Other arguments are, well, arguments.
-		clSetKernelArg(this.kernels[this.ops.get(node).ordinal()], 0, Sizeof.cl_mem, Pointer.to(forward[node]));
+		clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + this.ops.get(node).name()), 0, Sizeof.cl_mem, Pointer.to(forward[node]));
 		for(int i=0; i < arguments.get(node).length; i++) {
-			clSetKernelArg(this.kernels[this.ops.get(node).ordinal()], i+1, Sizeof.cl_mem, Pointer.to(forward[arguments.get(node)[i]]));
+			clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + this.ops.get(node).name()), i+1, Sizeof.cl_mem, Pointer.to(forward[arguments.get(node)[i]]));
 		}
 
 		// Set the work size.  Global work size is the number of things you want done.  It is always 0-(N-1).
@@ -348,18 +431,17 @@ public class GPUGraph extends Graph {
 		int workDim = 1;
 
 		if(this.ops.get(node) == MATRIXMULTIPLY) { // Set work size and enqueue the extra parameters.
-			clSetKernelArg(this.kernels[MATRIXMULTIPLY.ordinal()], 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
-			clSetKernelArg(this.kernels[MATRIXMULTIPLY.ordinal()], 4, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[1]).getWidth()}));
+			clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + MATRIXMULTIPLY.name()), 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
+			clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + MATRIXMULTIPLY.name()), 4, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[1]).getWidth()}));
 			localWorkSize = new long[]{ 1, 1 }; // TODO: Tune this.
 			globalWorkSize = new long[]{ getShape(node).getWidth(), getShape(node).getHeight() };
 			workDim = 2;
 		} else if(this.ops.get(node) == TRANSPOSE) {
-			clSetKernelArg(this.kernels[TRANSPOSE.ordinal()], 2, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
-			clSetKernelArg(this.kernels[TRANSPOSE.ordinal()], 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getHeight()}));
+			clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + TRANSPOSE.name()), 2, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
+			clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + TRANSPOSE.name()), 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getHeight()}));
 		}
 
-		clEnqueueNDRangeKernel(commandQueue, this.kernels[this.ops.get(node).ordinal()], workDim, null, globalWorkSize, localWorkSize, 0, null, null);
+		clEnqueueNDRangeKernel(commandQueue, this.kernels.get(KERNEL_FORWARD_PREFIX + this.ops.get(node).name()), workDim, null, globalWorkSize, localWorkSize, 0, null, null);
 	}
 }
-
 
