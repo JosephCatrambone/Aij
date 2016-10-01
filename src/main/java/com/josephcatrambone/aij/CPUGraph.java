@@ -30,7 +30,7 @@ public class CPUGraph extends Graph {
 		adjoint[node] = new float[shapes.get(node).size()];
 		for(int i=0; i < adjoint[node].length; i++) { adjoint[node][i] = 1.0f; }
 		// Trace evaluation in reverse order.
-		evaluateAdjointChildren(inputs, node);
+		evaluateAdjointChildren(node);
 		return adjoint;
 	}
 
@@ -46,7 +46,7 @@ public class CPUGraph extends Graph {
 		}
 	}
 
-	private void evaluateAdjointChildren(HashMap<Integer, float[]> inputs, int node) {
+	private void evaluateAdjointChildren(int node) {
 		// Each of these operations must operate on its child value, setting the adjoints.
 		// From "GPU-accelerated adjoint algorithmic differentiation" by Gremse et al. (2016)
 		// ??? Adjoint(X) = Adjoint(Parent(X)) * f'(x)
@@ -239,7 +239,7 @@ public class CPUGraph extends Graph {
 
 		// Evaluate the children's children.
 		for(int arg : arguments.get(node)) {
-			evaluateAdjointChildren(inputs, arg);
+			evaluateAdjointChildren(arg);
 		}
 	}
 
@@ -346,3 +346,4 @@ public class CPUGraph extends Graph {
 		}
 	}
 }
+
