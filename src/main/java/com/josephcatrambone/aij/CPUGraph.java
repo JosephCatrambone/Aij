@@ -12,18 +12,15 @@ public class CPUGraph extends Graph {
 	float[][] forward;
 	float[][] adjoint;
 
-	@Override
-	public float[] getOutput(HashMap<Integer, float[]> inputs, int node) {
+	private void runForward(HashMap<Integer, float[]> inputs, int node) {
 		forward = new float[this.names.size()][];
 		for(int i=0; i <= node; i++) {
 			evaluateForward(inputs, i);
 		}
-		return forward[node];
 	}
 
-	@Override
-	public float[][] getGradient(HashMap<Integer, float[]> inputs, int node) {
-		getOutput(inputs, node); // Run forward.
+	private void runBackward(HashMap<Integer, float[]> inputs, int node) {
+		runForward(inputs, node); // Run forward.
 
 		adjoint = new float[this.names.size()][];
 		// Starting adjoint is ones.
@@ -31,6 +28,17 @@ public class CPUGraph extends Graph {
 		for(int i=0; i < adjoint[node].length; i++) { adjoint[node][i] = 1.0f; }
 		// Trace evaluation in reverse order.
 		evaluateAdjointChildren(node);
+	}
+
+	@Override
+	public float[] getOutput(HashMap<Integer, float[]> inputs, int node) {
+		runForward(inputs, node);
+		return forward[node];
+	}
+
+	@Override
+	public float[][] getGradient(HashMap<Integer, float[]> inputs, int node) {
+		runBackward(inputs, node);
 		return adjoint;
 	}
 
@@ -69,6 +77,17 @@ public class CPUGraph extends Graph {
 				for(int arg : arguments.get(node)) {
 					for (int i = 0; i < adjoint[node].length; i++) {
 						adjoint[arg][i] += adjoint[node][i];
+					}
+				}
+				break;
+			case ADD_BROADCAST:
+				left = arguments.get(node)[0];
+				right = arguments.get(node)[1];
+				leftShape = getShape(left);
+				for(int row=0; row < leftShape.getRows(); row++) {
+					for(int col=0; col < leftShape.getColumns(); col++) {
+						adjoint[left][col + row*getShape(node).getWidth()] += adjoint[node][col + row*leftShape.getWidth()];
+						adjoint[right][col] += adjoint[node][col + row*leftShape.getWidth()]/leftShape.getWidth();
 					}
 				}
 				break;
@@ -116,7 +135,9 @@ public class CPUGraph extends Graph {
 						float accumulator = 0;
 						for(int k=0; k < thisShape.getWidth(); k++) {
 							//accumulator += forward[left][i + y*leftShape.getWidth()] * forward[right][x + i*rightShape.getWidth()];
-							accumulator += adjoint[node][k + y*thisShape.getWidth()] * forward[right][k*rightShape.getHeight() + y]; // Need to transpose forward.
+							float adjParent = adjoint[node][k + y*thisShape.getWidth()];
+							float fwdRight = forward[right][(k*rightShape.getHeight() + y)%forward[right].length];
+							accumulator += adjParent * fwdRight; // Need to transpose forward.
 							// ____  0 1 2 3 4 5
 							// R:   [a b c d e f]
 							// R_t: [a c b e d f]
@@ -142,14 +163,13 @@ public class CPUGraph extends Graph {
 						for(int k=0; k < leftShape.getRows(); k++) {
 							// First row * first column.
 							// Except left is transpose, so we do the first column * first column.
-							float fwd = forward[left][y + k*leftShape.getWidth()];
+							float fwd = forward[left][(y + k*leftShape.getWidth())%forward[left].length];
 							float adj = adjoint[node][x + k*thisShape.getWidth()];
 							accumulator += fwd * adj;
 						}
 						adjoint[right][x + y*rightShape.getWidth()] = accumulator;
 					}
 				}
-
 				break;
 			case INVERT:
 				// y := EW(x, op) -> y = 1/x
@@ -260,6 +280,16 @@ public class CPUGraph extends Graph {
 					elementBinaryOp(forward[arg], forward[node], forward[node], (x,y) -> x+y); // fwd[this] = fwd[this] + fwd[arg]
 				}
 				break;
+			case ADD_BROADCAST:
+				left = arguments.get(node)[0];
+				right = arguments.get(node)[1];
+				leftShape = getShape(left);
+				for(int row=0; row < leftShape.getRows(); row++) {
+					for(int col=0; col < leftShape.getColumns(); col++) {
+						forward[node][col + row*getShape(node).getWidth()] = forward[left][col + row*leftShape.getWidth()] + forward[right][col];
+					}
+				}
+				break;
 			case EXP:
 				elementUnaryOp(forward[arguments.get(node)[0]], forward[node], x -> (float)Math.exp(x));
 				break;
@@ -304,6 +334,7 @@ public class CPUGraph extends Graph {
 				}
 				break;
 			case INPUT:
+				assert(inputs.get(node).length == getShape(node).size());
 				elementUnaryOp(inputs.get(node), forward[node], (x) -> x);
 				break;
 			case TRANSPOSE:

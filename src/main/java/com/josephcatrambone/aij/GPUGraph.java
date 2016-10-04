@@ -90,6 +90,58 @@ public class GPUGraph extends Graph {
 		// Read output data.
 	}
 
+	private void runForward(HashMap<Integer, float[]> inputs, int node, boolean freeMemory) {
+		// Allocate forward pointers based on the sizes.
+		if(freeMemory || forward == null) {
+			freeMemoryObjects(forward);
+			forward = new cl_mem[this.names.size()];
+		}
+
+		// Copy the inputs to input buffers.
+		for(int i=0; i <= node; i++) {
+			if(ops.get(i) == NODE_OPERATION.INPUT) {
+				Pointer inputPtr = Pointer.to(inputs.get(i));
+				forward[i] = clCreateBuffer(this.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, Sizeof.cl_float*getShape(i).size(), inputPtr, null);
+			} else {
+				forward[i] = clCreateBuffer(this.context, CL_MEM_READ_WRITE, Sizeof.cl_float*getShape(i).size(), null, null);
+			}
+		}
+
+		// Calculate forward.
+		for(int i=0; i <= node; i++) {
+			evaluateForward(i);
+		}
+
+		// Flush ops.
+		clFinish(commandQueue);
+	}
+
+	private void runBackward(HashMap<Integer, float[]> inputs, int node, boolean freeMemory) {
+		runForward(inputs, node, true); // Run forward.
+
+		// If there is memory on the GPU already allocated, free it.
+		// For each of the adjoints, reset to zero..
+		freeMemoryObjects(adjoint);
+		adjoint = new cl_mem[this.names.size()];
+
+		// Pre-allocate adjoint memory blocks.
+		float[] ones = new float[getShape(node).size()]; for(int i=0; i < getShape(node).size(); i++) { ones[i] = 1.0f; }
+		adjoint[node] = clCreateBuffer(this.context, CL_MEM_COPY_HOST_PTR, Sizeof.cl_float*ones.length, Pointer.to(ones), null);
+		float[] zeros = new float[]{ 0.0f };
+		for(int i=node-1; i >= 0; i--) {
+			adjoint[i] = clCreateBuffer(this.context, CL_MEM_READ_WRITE, Sizeof.cl_float*getShape(i).size(), null, null);
+			// Init adjoints of this node to ones. Init children to zero.
+			clEnqueueFillBuffer(this.commandQueue, adjoint[i], Pointer.to(zeros), 1, 0, Sizeof.cl_float*getShape(i).size(), 0, null, null);
+		}
+		clEnqueueBarrier(commandQueue);
+
+		// Trace evaluation in reverse order.
+		evaluateAdjointChildren(node);
+
+		// Execute all the queued operations.
+		clFinish(commandQueue);
+	}
+
 	private static String makeForwardUnaryOpWrapper(String name, String sourceOp) {
 		// Used to avoid naming conflicts.
 		return "__kernel void " + KERNEL_FORWARD_PREFIX + name + "(__global float* restrict target, __global const float* restrict src) { int gid = get_global_id(0); target[gid] = "+ sourceOp + "}\n";
@@ -256,10 +308,13 @@ public class GPUGraph extends Graph {
 		//ABS:
 		// y := EW(x, op).  x_adj += EW(y_adj, EW(x, d_op), dot)
 		//adjoint[left][i] += adjoint[node][i]*dAbs;
-		prog.append(makeAdjointUnaryOpWrapper("ABS", "parentAdjoint[gid]* (-fabs(forward[gid]));"));
+		prog.append(makeAdjointUnaryOpWrapper("ABS", "parentAdjoint[gid] * copysign(1.0f, forward[gid]);"));
 
 		prog.append("__kernel void adj_TRANSPOSE(__global float* restrict target, __global float* src, int srcWidth, int srcHeight) {}\n");
 		prog.append("__kernel void adj_TRACE(__global float* restrict target, __global float* srcA) {}\n");
+
+		prog.append("__kernel void fwd_ADD_BROADCAST(__global float* restrict target, __global float* srcA, __global float* srcB, int srcBWidth) { int g = get_global_id(0); target[g] = srcA[g] + srcB[g%srcBWidth]; }\n");
+		prog.append("__kernel void adj_ADD_BROADCAST(__global float* restrict leftAdjoint, __global float* restrict rightAdjoint, __global const float* restrict parentAdjoint, int rightWidth) { int g = get_global_id(0); leftAdjoint[g] += parentAdjoint[g]; rightAdjoint[g%rightWidth] += parentAdjoint[g]/rightWidth; }\n");
 
 		return prog.toString();
 	}
@@ -305,27 +360,7 @@ public class GPUGraph extends Graph {
 
 	@Override
 	public float[] getOutput(HashMap<Integer, float[]> inputs, int node) {
-		// Allocate forward pointers based on the sizes.
-		freeMemoryObjects(forward); // TODO: Make this free optional so we can reuse memory?
-		forward = new cl_mem[this.names.size()];
-
-		// Copy the inputs to input buffers.
-		for(int i=0; i <= node; i++) {
-			if(ops.get(i) == NODE_OPERATION.INPUT) {
-				Pointer inputPtr = Pointer.to(inputs.get(i));
-				forward[i] = clCreateBuffer(this.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, Sizeof.cl_float*getShape(i).size(), inputPtr, null);
-			} else {
-				forward[i] = clCreateBuffer(this.context, CL_MEM_READ_WRITE, Sizeof.cl_float*getShape(i).size(), null, null);
-			}
-		}
-
-		// Calculate forward.
-		for(int i=0; i <= node; i++) {
-			evaluateForward(i);
-		}
-
-		// Flush ops.
-		clFinish(commandQueue);
+		runForward(inputs, node, true);
 
 		// Copy the result to an input buffer.
 		float[] result = new float[getShape(node).size()];
@@ -335,29 +370,7 @@ public class GPUGraph extends Graph {
 
 	@Override
 	public float[][] getGradient(HashMap<Integer, float[]> inputs, int node) {
-		getOutput(inputs, node); // Run forward.
-
-		// If there is memory on the GPU already allocated, free it.
-		// For each of the adjoints, reset to zero..
-		freeMemoryObjects(adjoint);
-		adjoint = new cl_mem[this.names.size()];
-
-		// Pre-allocate adjoint memory blocks.
-		float[] ones = new float[getShape(node).size()]; for(int i=0; i < getShape(node).size(); i++) { ones[i] = 1.0f; }
-		adjoint[node] = clCreateBuffer(this.context, CL_MEM_COPY_HOST_PTR, Sizeof.cl_float*ones.length, Pointer.to(ones), null);
-		float[] zeros = new float[]{ 0.0f };
-		for(int i=node-1; i >= 0; i--) {
-			adjoint[i] = clCreateBuffer(this.context, CL_MEM_READ_WRITE, Sizeof.cl_float*getShape(i).size(), null, null);
-			// Init adjoints of this node to ones. Init children to zero.
-			clEnqueueFillBuffer(this.commandQueue, adjoint[i], Pointer.to(zeros), 1, 0, Sizeof.cl_float*getShape(i).size(), 0, null, null);
-		}
-		clEnqueueBarrier(commandQueue);
-
-		// Trace evaluation in reverse order.
-		evaluateAdjointChildren(node);
-
-		// Execute all the queued operations.
-		clFinish(commandQueue);
+		runBackward(inputs, node, true);
 
 		// Copy adjoints back from memory.
 		float[][] result = new float[names.size()][];
@@ -394,14 +407,20 @@ public class GPUGraph extends Graph {
 			clSetKernelArg(this.kernels.get(kernelName), 3, Sizeof.cl_mem, Pointer.to(forward[args[0]]));
 			clSetKernelArg(this.kernels.get(kernelName), 4, Sizeof.cl_mem, Pointer.to(forward[args[1]]));
 
-			clSetKernelArg(this.kernels.get(kernelName), 5, Sizeof.cl_int, Pointer.to(new int[]{ getShape(args[0]).getWidth() }));
-			clSetKernelArg(this.kernels.get(kernelName), 6, Sizeof.cl_int, Pointer.to(new int[]{ getShape(args[0]).getHeight() }));
-			clSetKernelArg(this.kernels.get(kernelName), 7, Sizeof.cl_int, Pointer.to(new int[]{ getShape(args[1]).getWidth() }));
-			clSetKernelArg(this.kernels.get(kernelName), 8, Sizeof.cl_int, Pointer.to(new int[]{ getShape(args[1]).getHeight() }));
+			clSetKernelArg(this.kernels.get(kernelName), 5, Sizeof.cl_int, Pointer.to(new int[]{getShape(args[0]).getWidth()}));
+			clSetKernelArg(this.kernels.get(kernelName), 6, Sizeof.cl_int, Pointer.to(new int[]{getShape(args[0]).getHeight()}));
+			clSetKernelArg(this.kernels.get(kernelName), 7, Sizeof.cl_int, Pointer.to(new int[]{getShape(args[1]).getWidth()}));
+			clSetKernelArg(this.kernels.get(kernelName), 8, Sizeof.cl_int, Pointer.to(new int[]{getShape(args[1]).getHeight()}));
 
-			localWorkSize = new long[]{ 1, 1 }; // TODO: Tune this.
-			globalWorkSize = new long[]{ getShape(args[0]).size(), getShape(args[1]).size() };
+			localWorkSize = new long[]{1, 1}; // TODO: Tune this.
+			globalWorkSize = new long[]{getShape(args[0]).size(), getShape(args[1]).size()};
 			workDim = 2;
+		} else if(ops.get(node) == ADD_BROADCAST) {
+			int[] args = arguments.get(node);
+			clSetKernelArg(this.kernels.get(kernelName), 0, Sizeof.cl_mem, Pointer.to(adjoint[args[0]]));
+			clSetKernelArg(this.kernels.get(kernelName), 1, Sizeof.cl_mem, Pointer.to(adjoint[args[1]]));
+			clSetKernelArg(this.kernels.get(kernelName), 2, Sizeof.cl_mem, Pointer.to(adjoint[node]));
+			clSetKernelArg(this.kernels.get(kernelName), 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(args[1]).getWidth()}));
 		} else {
 			int currentArg = 0;
 			for(int arg : arguments.get(node)) {
@@ -451,6 +470,8 @@ public class GPUGraph extends Graph {
 		} else if(this.ops.get(node) == TRANSPOSE) {
 			clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + TRANSPOSE.name()), 2, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getWidth()}));
 			clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + TRANSPOSE.name()), 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[0]).getHeight()}));
+		} else if(this.ops.get(node) == ADD_BROADCAST) {
+			clSetKernelArg(this.kernels.get(KERNEL_FORWARD_PREFIX + ADD_BROADCAST.name()), 3, Sizeof.cl_int, Pointer.to(new int[]{getShape(arguments.get(node)[1]).getWidth()}));
 		}
 
 		clEnqueueNDRangeKernel(commandQueue, this.kernels.get(KERNEL_FORWARD_PREFIX + this.ops.get(node).name()), workDim, null, globalWorkSize, localWorkSize, 0, null, null);

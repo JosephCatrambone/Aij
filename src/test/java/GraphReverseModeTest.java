@@ -1,6 +1,4 @@
-import com.josephcatrambone.aij.CPUGraph;
-import com.josephcatrambone.aij.Dimension;
-import com.josephcatrambone.aij.Graph;
+import com.josephcatrambone.aij.*;
 
 import org.junit.Test;
 
@@ -66,49 +64,55 @@ public class GraphReverseModeTest {
 
 	@Test
 	public void testMatrixMultiply() throws IOError, IOException {
+		final int BATCH_SIZE = 10;
+		final int HIDDEN_SIZE = 3;
 		Random random = new Random();
 		Graph g = makeGraph();
-		int const_two = g.addInput("2", new Dimension(1, 1));
-		int y = g.addInput("y", new Dimension(1, 1));
-		int x = g.addInput("x", new Dimension(2, 1));
+		int y = g.addInput("y", new Dimension(1, BATCH_SIZE));
+		int x = g.addInput("x", new Dimension(2, BATCH_SIZE));
 
-		int w1 = g.addNode("w1", Graph.NODE_OPERATION.INPUT, new int[]{}, new Dimension(3, 2));
-		int w2 = g.addNode("w2", Graph.NODE_OPERATION.INPUT, new int[]{}, new Dimension(1, 3));
-		int b1 = g.addInput("bias1", new Dimension(3, 1));
+		int w1 = g.addNode("w1", Graph.NODE_OPERATION.INPUT, new int[]{}, new Dimension(HIDDEN_SIZE, 2));
+		int w2 = g.addNode("w2", Graph.NODE_OPERATION.INPUT, new int[]{}, new Dimension(1, HIDDEN_SIZE));
+		int b1 = g.addInput("bias1", new Dimension(HIDDEN_SIZE, 1));
 
 		int h_act = g.addNode("h_act", Graph.NODE_OPERATION.MATRIXMULTIPLY, new int[]{x, w1});
-		int h_act_biased = g.addNode("h_act_biased", Graph.NODE_OPERATION.ADD, new int[]{h_act, b1});
+		int h_act_biased = g.addNode("h_act_biased", Graph.NODE_OPERATION.ADD_BROADCAST, new int[]{h_act, b1});
 		int h = g.addNode("h", Graph.NODE_OPERATION.TANH, new int[]{h_act_biased});
 		int out = g.addNode("pre_out", Graph.NODE_OPERATION.MATRIXMULTIPLY, new int[]{h, w2});
 		//int out = g.addNode("out", Graph.NODE_OPERATION.TANH, new int[]{pre_out});
 		int inv_out = g.addNode("difference", Graph.NODE_OPERATION.NEGATE, new int[]{out});
 		int diff = g.addNode("sum", Graph.NODE_OPERATION.ADD, new int[]{y, inv_out});
-		int err = g.addNode("pow", Graph.NODE_OPERATION.POWER, new int[]{diff, const_two});
+		int err = g.addNode("abs", Graph.NODE_OPERATION.ABS, new int[]{diff});
 
 		HashMap<Integer, float[]> inputs = new HashMap<>();
-		inputs.put(const_two, new float[]{2.0f});
 		inputs.put(x, new float[]{});
 		inputs.put(y, new float[]{});
 		inputs.put(b1, new float[]{});
 		inputs.put(w1, new float[]{});
 		inputs.put(w2, new float[]{});
 
-		float[] w1Data = new float[]{0.1f, 0.001f, -1.0f, 0.01f, 0.00001f, 1.0f};
-		float[] w2Data = new float[]{0.1f, 0.001f, -0.1f};
-		float[] bData = new float[]{0f, 0f, 0f};
+		float[] w1Data = new float[g.getShape(w1).size()]; for(int i=0; i < w1Data.length; i++) { w1Data[i] = (float)random.nextGaussian(); }
+		float[] w2Data = new float[g.getShape(w2).size()]; for(int i=0; i < w2Data.length; i++) { w2Data[i] = (float)random.nextGaussian(); }
+		float[] bData = new float[g.getShape(b1).size()];
 
-		float learningRate = 1e-2f;
-		float gradCap = 1.0f;
-		for(int i=1; i < 10000; i++) {
+		float learningRate = 1e-2f / BATCH_SIZE;
+		float gradCap = 10.0f * learningRate;
+		for(int i=1; i < 20000; i++) {
+			g.setShape(x, new Dimension(2, BATCH_SIZE));
+			g.setShape(y, new Dimension(1, BATCH_SIZE));
 			inputs.replace(w1, w1Data);
 			inputs.replace(w2, w2Data);
 			inputs.replace(b1, bData);
 
-			float x0 = random.nextFloat() > 0.5f ? 1.0f : 0.0f;
-			float x1 = random.nextFloat() > 0.5f ? 1.0f : 0.0f;
-			float y0 = (x0 > 0.5f) ^ (x1 > 0.5f) ? 1.0f : 0.0f;
-			inputs.replace(x, new float[]{x0, x1});
-			inputs.replace(y, new float[]{y0});
+			float[] xBatch = new float[2*BATCH_SIZE];
+			float[] yBatch = new float[BATCH_SIZE];
+			for(int j=0; j < BATCH_SIZE; j++) {
+				xBatch[j*2] = random.nextFloat() > 0.5f ? 1.0f : 0.0f;
+				xBatch[j*2 + 1] = random.nextFloat() > 0.5f ? 1.0f : 0.0f;
+				yBatch[j] = (xBatch[j*2] > 0.5f) ^ (xBatch[j*2 + 1] > 0.5f) ? 1.0f : 0.0f;
+			}
+			inputs.replace(x, xBatch);
+			inputs.replace(y, yBatch);
 			float[][] grads = g.getGradient(inputs, err);
 			for(int j=0; j < w1Data.length; j++) {
 				w1Data[j] -= Math.abs(learningRate*grads[w1][j]) < gradCap ? learningRate*grads[w1][j] : gradCap*Math.signum(grads[w1][j]);
@@ -121,30 +125,34 @@ public class GraphReverseModeTest {
 			}
 
 			// Test the error for validation.
-			float errorAccumulator = 0.0f;
-			HashMap<Integer, float[]> testInputs = new HashMap<>();
-			testInputs.put(const_two, new float[]{2.0f});
-			testInputs.put(x, new float[]{0f, 0f});
-			testInputs.put(y, new float[]{0f});
-			testInputs.put(w1, w1Data);
-			testInputs.put(w2, w2Data);
-			testInputs.put(b1, bData);
-			errorAccumulator += g.getOutput(testInputs, err)[0];
-			testInputs.replace(x, new float[]{0f, 1f});
-			testInputs.replace(y, new float[]{1f});
-			errorAccumulator += g.getOutput(testInputs, err)[0];
-			testInputs.replace(x, new float[]{1f, 0f});
-			testInputs.replace(y, new float[]{1f});
-			errorAccumulator += g.getOutput(testInputs, err)[0];
-			testInputs.replace(x, new float[]{1f, 1f});
-			testInputs.replace(y, new float[]{0f});
-			errorAccumulator += g.getOutput(testInputs, err)[0];
 			if(i % 1000 == 0) {
+				g.setShape(x, new Dimension(2, 1));
+				g.setShape(y, new Dimension(1, 1));
+				float errorAccumulator = 0.0f;
+				HashMap<Integer, float[]> testInputs = new HashMap<>();
+				testInputs.put(x, new float[]{0f, 0f});
+				testInputs.put(y, new float[]{0f});
+				testInputs.put(w1, w1Data);
+				testInputs.put(w2, w2Data);
+				testInputs.put(b1, bData);
+				errorAccumulator += g.getOutput(testInputs, err)[0];
+				testInputs.replace(x, new float[]{0f, 1f});
+				testInputs.replace(y, new float[]{1f});
+				errorAccumulator += g.getOutput(testInputs, err)[0];
+				testInputs.replace(x, new float[]{1f, 0f});
+				testInputs.replace(y, new float[]{1f});
+				errorAccumulator += g.getOutput(testInputs, err)[0];
+				testInputs.replace(x, new float[]{1f, 1f});
+				testInputs.replace(y, new float[]{0f});
+				errorAccumulator += g.getOutput(testInputs, err)[0];
 				System.out.print(errorAccumulator + "\n");
 			}
 		}
 
+		g.setShape(x, new Dimension(2, 1));
+		g.setShape(y, new Dimension(1, 1));
 		inputs.put(x, new float[]{0.0f, 0.0f});
+		inputs.put(y, new float[]{0.0f});
 		inputs.put(w1, w1Data);
 		inputs.put(w2, w2Data);
 		float[] outs = new float[4];
