@@ -1,6 +1,4 @@
-import com.josephcatrambone.aij.CPUGraph;
-import com.josephcatrambone.aij.Dimension;
-import com.josephcatrambone.aij.Graph;
+import com.josephcatrambone.aij.*;
 import org.junit.Test;
 
 import java.io.File;
@@ -25,16 +23,21 @@ public class NetworkTest {
 	public void autoencoderTest() {
 		final int WINDOW_SIZE = 5; // Should be odd.
 		final int ITERATIONS = 10000;
-		final int REPRESENTATION_SIZE = 500;
+		final int REPRESENTATION_SIZE = 100;
 		final float WEIGHT_SCALE = 0.1f;
+		final float LEARNING_RATE_DECAY = 0.9999f;
+		final int REPORT_INTERVAL = 10;
 		Random random = new Random();
 
 		// Build a dictionary.
 		System.out.println("Loading sentences and building dictionary.");
 		ArrayList<String> sentences = new ArrayList<>();
 		HashMap<String, Integer> wordToIndex = new HashMap<>();
+		HashMap<String, Integer> frequencyCount = new HashMap<>();
 		ArrayList<String> indexToWord = new ArrayList<>();
 		//InputStream fin = this.getClass().getResourceAsStream();
+		wordToIndex.put("", 0);
+		indexToWord.add("");
 		Scanner scanner = null;
 		try {
 			scanner = new Scanner(new File("sentences.txt"));
@@ -51,6 +54,7 @@ public class NetworkTest {
 					wordToIndex.put(cleanWord, indexToWord.size());
 					indexToWord.add(cleanWord);
 				}
+				frequencyCount.replace(cleanWord, frequencyCount.getOrDefault(cleanWord, 0)+1);
 			}
 		}
 		System.out.println("Found " + wordToIndex.size() + " different words and " + sentences.size() + " sentences.");
@@ -95,10 +99,10 @@ public class NetworkTest {
 
 		// Train with simple backpropagation, no momentum.
 		System.out.println("Training.");
-		float learningRate = 0.01f;
+		float learningRate = 0.001f;
 		long averageTimePerIteration = 0;
 		long startTime = System.currentTimeMillis();
-		for(int i=0; i < ITERATIONS; i++) {
+		for(int i=1; i < ITERATIONS; i++) {
 			float deltaSum = 0.0f;
 			System.out.println("Iteration " + i);
 			// Select random sentence and split.  Make sure we have a minimum window size.
@@ -119,7 +123,7 @@ public class NetworkTest {
 				for(int k=j; k < j+WINDOW_SIZE && validWindow; k++) {
 					// Copy these words into the example.
 					int index = wordToIndex.getOrDefault(cleanWord(sent[k]), -1);
-					if(index == -1 && k == midpoint) { validWindow = false; continue; }
+					if(index == -1) { validWindow = false; continue; }
 					if(k == midpoint) {
 						label[index] = 1.0f;
 					} else {
@@ -149,6 +153,7 @@ public class NetworkTest {
 					inputs.get(b2)[k] += dw[b2][k]*learningRate;
 				}
 			}
+			learningRate *= LEARNING_RATE_DECAY;
 
 			// Report time.
 			long timeDelta = System.currentTimeMillis() - startTime;
@@ -156,22 +161,31 @@ public class NetworkTest {
 			System.out.println("Last iteration: " + timeDelta + "ms.  Average of last ten: " + averageTimePerIteration);
 			System.out.println("Delta sum: " + deltaSum);
 
-			float[] expected = inputs.get(y);
-			float[] wordDOneHot = g.getOutput(inputs, out);
-			// Pick the highest values.
-			int topK = 0;
-			int top1 = 0, top2 = 1, top3 = 2;
-			for(int k=0; k < wordDOneHot.length; k++) {
-				if(wordDOneHot[k] > wordDOneHot[top1]) { top3 = top2; top2 = top1; top1 = k; }
-				else if(wordDOneHot[k] > wordDOneHot[top2]) { top3 = top2; top2 = k; }
-				else if(wordDOneHot[k] > wordDOneHot[top3]) { top3 = k; }
+			if(i % REPORT_INTERVAL == 0) {
+				float[] expected = inputs.get(y);
+				float[] wordDOneHot = g.getOutput(inputs, out);
+				// Pick the highest values.
+				int topK = 0;
+				int top1 = 0, top2 = 1, top3 = 2;
+				for (int k = 0; k < wordDOneHot.length; k++) {
+					if (wordDOneHot[k] > wordDOneHot[top1]) {
+						top3 = top2;
+						top2 = top1;
+						top1 = k;
+					} else if (wordDOneHot[k] > wordDOneHot[top2]) {
+						top3 = top2;
+						top2 = k;
+					} else if (wordDOneHot[k] > wordDOneHot[top3]) {
+						top3 = k;
+					}
 
-				if(expected[k] > expected[topK]) {
-					topK = k;
+					if (expected[k] > expected[topK]) {
+						topK = k;
+					}
 				}
+				System.out.println("Expected: " + indexToWord.get(topK));
+				System.out.println(indexToWord.get(top1) + "/" + indexToWord.get(top2) + "/" + indexToWord.get(top3));
 			}
-			System.out.println("Expected: " + indexToWord.get(topK));
-			System.out.println(indexToWord.get(top1) + "/" + indexToWord.get(top2) + "/" + indexToWord.get(top3));
 
 			startTime = System.currentTimeMillis();
 		}

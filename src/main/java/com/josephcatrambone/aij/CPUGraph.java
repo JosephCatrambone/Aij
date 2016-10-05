@@ -357,6 +357,22 @@ public class CPUGraph extends Graph {
 			case SIGMOID:
 				elementUnaryOp(forward[arguments.get(node)[0]], forward[node], x -> 1.0f/(1.0f+(float)Math.exp(-x)));
 				break;
+			/*
+			case SOFTMAX:
+				// derivative = softmax out - label vector
+				left = arguments.get(node)[0];
+				leftShape = getShape(left);
+				for(int row=0; row < leftShape.getRows(); row++) {
+					float accumulator = 0.0f;
+					for (int col=0; col < leftShape.getColumns(); col++) {
+						accumulator += Math.exp(forward[left][col + row*leftShape.getWidth()]);
+					}
+					for(int col=0; col < leftShape.getColumns(); col++) {
+						forward[node][col + row*leftShape.getWidth()] = (float)Math.exp(forward[left][col + row*leftShape.getWidth()])/accumulator;
+					}
+				}
+				break;
+			*/
 			case POWER:
 				float[] base = forward[arguments.get(node)[0]];
 				float exp = forward[arguments.get(node)[1]][0];

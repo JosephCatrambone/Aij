@@ -44,10 +44,6 @@ public abstract class Graph {
 	}
 
 	public Dimension getShape(int node) {
-		if(shapes.contains(node)) {
-			return shapes.get(node);
-		}
-
 		switch(ops.get(node)) {
 			case ABS:
 			case ADD:
@@ -59,6 +55,7 @@ public abstract class Graph {
 			case NEGATE:
 			case POWER:
 			case POWER2:
+			//case SOFTMAX:
 			case SUBTRACT:
 			case SIGMOID:
 			case TANH:

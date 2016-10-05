@@ -1,6 +1,8 @@
 apply plugin: 'java'
 apply plugin: 'idea'
 
+// Use -XX:+UnlockCommercialFeatures -XX:+FlightRecorder for debugging with JMC.
+
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 version = '1.0'

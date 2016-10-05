@@ -11,7 +11,7 @@ import java.util.Random;
 public class GraphForwardModeTest {
 	final float TOLERANCE = 0.00001f;
 	public Graph makeGraph() {
-		return new CPUGraph(); // For fast switching to GPU tests.
+		return new GPUGraph(); // For fast switching to GPU tests.
 	}
 
 	public void testOpGradient(Graph.NODE_OPERATION op, float xStep, float xRange, float threshold) {

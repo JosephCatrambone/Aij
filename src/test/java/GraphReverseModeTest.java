@@ -64,8 +64,10 @@ public class GraphReverseModeTest {
 
 	@Test
 	public void testMatrixMultiply() throws IOError, IOException {
-		final int BATCH_SIZE = 10;
+		final int BATCH_SIZE = 500;
 		final int HIDDEN_SIZE = 3;
+		final int ITERATIONS = 1000000;
+		final float LEARNING_RATE_DECAY = 0.9999f;
 		Random random = new Random();
 		Graph g = makeGraph();
 		int y = g.addInput("y", new Dimension(1, BATCH_SIZE));
@@ -97,7 +99,7 @@ public class GraphReverseModeTest {
 
 		float learningRate = 1e-2f / BATCH_SIZE;
 		float gradCap = 10.0f * learningRate;
-		for(int i=1; i < 20000; i++) {
+		for(int i=1; i < ITERATIONS; i++) {
 			g.setShape(x, new Dimension(2, BATCH_SIZE));
 			g.setShape(y, new Dimension(1, BATCH_SIZE));
 			inputs.replace(w1, w1Data);
@@ -123,6 +125,8 @@ public class GraphReverseModeTest {
 			for(int j=0; j < bData.length; j++) {
 				bData[j] -= Math.abs(learningRate*grads[b1][j]) < gradCap ? learningRate*grads[b1][j] : gradCap*Math.signum(grads[b1][j]);
 			}
+
+			learningRate *= LEARNING_RATE_DECAY;
 
 			// Test the error for validation.
 			if(i % 1000 == 0) {
