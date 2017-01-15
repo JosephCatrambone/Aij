@@ -4,9 +4,7 @@ import com.josephcatrambone.aij.Matrix;
 
 class AbsNode extends Node {
 	public AbsNode(Node inputNode) {
-		this.columns = inputNode.columns;
-		this.rows = inputNode.rows;
-		this.inputs = new int[]{inputNode.id};
+		super(inputNode);
 	}
 
 	public Matrix forward(Matrix[] args) {

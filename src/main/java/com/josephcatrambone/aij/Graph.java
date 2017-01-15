@@ -12,12 +12,13 @@ public class Graph {
 	ArrayList<Node> nodes = new ArrayList<>();
 
 	public Node addNode(Node n) {
-		n.id = nodes.size();
-		for(int inp : n.inputs) {
-			if(inp == -1 || inp >= nodes.size()) {
-				throw new RuntimeException("Node added to graph without dependencies: ID " + n.id);
+		// Make sure all the dependencies happen first.
+		for(Node inp : n.inputs) {
+			if(inp.id == -1) {
+				this.addNode(inp);
 			}
 		}
+		n.id = nodes.size();
 		nodes.add(n);
 		return n; // A pass-through.
 	}
@@ -55,7 +56,7 @@ public class Graph {
 				Node n = nodes.get(i);
 				Matrix[] forwardInputs = new Matrix[n.inputs.length];
 				for(int j=0; j < forwardInputs.length; j++) {
-					forwardInputs[j] = results[n.inputs[j]];
+					forwardInputs[j] = results[n.inputs[j].id];
 				}
 				results[i] = nodes.get(i).forward(forwardInputs);
 			}
@@ -79,21 +80,37 @@ public class Graph {
 		}
 	}*/
 
+	/***
+	 * Calculate the gradient with respect to the given node.
+	 * @param inputFeed A Hash Map of the input node -> matrix values.
+	 * @param fwd The values from the forward pass if already computed.  If null, will compute them.
+	 * @param node The value with respect to which we want the gradient.
+	 * @return Returns an array of matrices wherein Matrix[node.id] corresponds to the node's gradient.
+	 */
 	public Matrix[] getGradient(HashMap<Node, Matrix> inputFeed, Matrix[] fwd, Node node) {
+		// If forward pass isn't calculated, do that.
 		if(fwd == null) {
 			fwd = forward(inputFeed);
 		}
+
+		// Populate our initial adjoints/gradients.
 		Matrix[] grads = new Matrix[nodes.size()];
-		grads[node.id] = Matrix.ones(node.rows, node.columns);
+		grads[node.id] = Matrix.ones(node.rows, node.columns); // The output/target gets 1.0.
+		// Everything else gets 0.0.
+		for(int i=0; i < node.id; i++) {
+			grads[i] = new Matrix(nodes.get(i).rows, nodes.get(i).columns);
+		}
+
+		// Starting from the out and propagating backwards, calculate the adjoints.
 		for(int i=node.id; i >= 0; i--) {
 			// For all the inputs to this node, calculate their adjoints from this adjoint.
 			Matrix[] argInputs = new Matrix[nodes.get(i).inputs.length];
 			for(int j=0; j < argInputs.length; j++) {
-				argInputs[j] = fwd[nodes.get(i).inputs[j]];
+				argInputs[j] = fwd[nodes.get(i).inputs[j].id];
 			}
 			Matrix[] nextAdjoints = nodes.get(i).reverse(argInputs, grads[i]);
 			for(int j=0; j < nodes.get(i).inputs.length; j++) {
-				grads[nodes.get(i).inputs[j]].elementOp_i(nextAdjoints[j], (a,b) -> a+b);
+				grads[nodes.get(i).inputs[j].id].elementOp_i(nextAdjoints[j], (a,b) -> a+b);
 			}
 		}
 		return grads;

@@ -5,9 +5,7 @@ import com.josephcatrambone.aij.Matrix;
 class LogNode extends Node {
 
 	public LogNode(Node input) {
-		this.rows = input.rows;
-		this.columns = input.columns;
-		this.inputs = new int[]{input.id};
+		super(input);
 	}
 
 	// z := elem(x, op)

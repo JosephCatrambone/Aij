@@ -12,7 +12,7 @@ public class BroadcastNode extends Node {
 		this.columns = input.columns* columnRepeats;
 		this.rowRepeats = rowRepeats;
 		this.columnRepeats = columnRepeats;
-		this.inputs = new int[]{input.id};
+		this.inputs = new Node[]{input};
 	}
 
 	public BroadcastNode(Node input, Node match) {
@@ -22,7 +22,7 @@ public class BroadcastNode extends Node {
 		this.columns = input.columns* columnRepeats;
 		assert(this.rows == match.rows);
 		assert(this.columns == match.columns);
-		this.inputs = new int[]{input.id};
+		this.inputs = new Node[]{input};
 	}
 
 	public Matrix forward(Matrix[] args) {

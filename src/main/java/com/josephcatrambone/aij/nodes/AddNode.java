@@ -8,9 +8,7 @@ import com.josephcatrambone.aij.Matrix;
 public class AddNode extends Node {
 
 	public AddNode(Node left, Node right) {
-		this.rows = left.rows;
-		this.columns = left.columns;
-		this.inputs = new int[]{left.id, right.id};
+		super(left.rows, left.columns, left, right);
 	}
 
 	@Override

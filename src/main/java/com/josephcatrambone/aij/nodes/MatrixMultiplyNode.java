@@ -8,7 +8,7 @@ public class MatrixMultiplyNode extends Node {
 		this.rows = left.rows;
 		this.columns = right.columns;
 		assert(left.columns == right.rows);
-		this.inputs = new int[]{left.id, right.id};
+		this.inputs = new Node[]{left, right};
 	}
 
 	public Matrix forward(Matrix[] args) {

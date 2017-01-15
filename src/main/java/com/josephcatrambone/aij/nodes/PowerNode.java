@@ -6,9 +6,7 @@ public class PowerNode extends Node {
 	float exponent;
 
 	public PowerNode(Node input, float e) {
-		this.rows = input.rows;
-		this.columns = input.columns;
-		this.inputs = new int[]{input.id};
+		super(input);
 		this.exponent = e;
 	}
 
@@ -24,7 +22,7 @@ public class PowerNode extends Node {
 				forward[0].elementOp(
 					a -> exponent*(float)Math.pow(a, exponent-1.0f)
 				),
-				(a,b)->a*b
+				(adj,x)->adj*x
 			)
 		};
 	}

@@ -3,6 +3,10 @@ package com.josephcatrambone.aij.nodes;
 import com.josephcatrambone.aij.Matrix;
 
 public class TanhNode extends Node {
+	public TanhNode(Node input) {
+		super(input);
+	}
+
 	public Matrix forward(Matrix[] args) {
 		return null;
 	}

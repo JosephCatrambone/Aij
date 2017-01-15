@@ -9,7 +9,7 @@ public class InputNode extends Node {
 	public InputNode(int rows, int columns) {
 		this.columns = columns;
 		this.rows = rows;
-		this.inputs = new int[]{};
+		this.inputs = new Node[]{};
 	}
 
 	public Matrix forward(Matrix[] args) {

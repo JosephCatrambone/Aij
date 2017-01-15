@@ -4,9 +4,7 @@ import com.josephcatrambone.aij.Matrix;
 
 public class ExpNode extends Node {
 	public ExpNode(Node input) {
-		this.rows = input.rows;
-		this.columns = input.columns;
-		this.inputs = new int[]{input.id};
+		super(input);
 	}
 
 	public Matrix forward(Matrix[] args) {

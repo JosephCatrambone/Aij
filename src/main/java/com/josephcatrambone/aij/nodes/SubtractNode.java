@@ -4,27 +4,19 @@ import com.josephcatrambone.aij.Matrix;
 
 public class SubtractNode extends Node {
 	public SubtractNode(Node left, Node right) {
-		this.rows = left.rows;
-		this.columns = left.columns;
-		this.inputs = new int[]{left.id, right.id};
+		super(left.rows, left.columns, left, right);
 	}
 
 	@Override
 	public Matrix forward(Matrix[] args) {
-		Matrix result = new Matrix(args[0].rows, args[0].columns);
-		for(Matrix m : args) {
-			result.elementOp_i(m, (a,b) -> a-b);
-		}
-		return result;
+		return args[0].elementOp(args[1], (a,b) -> a-b);
 	}
 
 	@Override
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
 		Matrix[] result = new Matrix[forward.length];
 		result[0] = adjoint;
-		for(int i=1; i < forward.length; i++) {
-			result[i] = adjoint.elementOp(a -> -a);
-		}
+		result[1] = adjoint.elementOp(a -> -a);
 		return result;
 	}
 }

@@ -23,7 +23,7 @@ public class GraphForwardModeTest {
 		inputs.put(y, new Matrix(1, 3, new float[]{-1.0f, 0.0f, 1.0f}));
 		//for(Graph.NODE_OPERATION op : Graph.NODE_OPERATION.values()) {
 		//int out = g.addNode("res", op, new int[]{x, y}); // y will be ignored for some operations.
-		op.inputs = new int[]{x.id, y.id}; // Bit of a hack.
+		op.inputs = new Node[]{x, y}; // Bit of a hack.
 		g.addNode(op);
 		float xIn = -xRange;
 		while(xIn < xRange) {

@@ -9,7 +9,7 @@ public class VariableNode extends Node {
 		variable = new Matrix(rows, columns);
 		this.rows = rows;
 		this.columns = columns;
-		this.inputs = new int[]{};
+		this.inputs = new Node[]{};
 	}
 
 	public Matrix forward(Matrix[] args) {
@@ -18,6 +18,14 @@ public class VariableNode extends Node {
 
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
 		return new Matrix[]{};
+	}
+
+	public void setVariable(Matrix newmat) {
+		variable = newmat;
+	}
+
+	public Matrix getVariable() {
+		return variable;
 	}
 
 	// Used to augment serialization.
