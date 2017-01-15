@@ -6,12 +6,16 @@ By default, this library depends only on OpenCL.  If you remove the GPUGraph.jav
 ## TODO:
 
 1. Input and Variable aren't supported as right-hand-side operators to power or exp functions
-1. Refactor how nodes are handled in the graph so we don't have a single huge file
 1. JSON Serialization of Graphs (?)
 1. Operator broadcasting of inputs
-1. In-memory variables so we don't have to keep pushing stuff via inputs
-1. Constants (depends on Variables)
 1. Convolution
+
+## Done:
+
+1. [ 2cfdf17cf802fb46271ff17ade147c007b952322 ] Refactor how nodes are handled in the graph so we don't have a single huge file
+1. [ 2cfdf17cf802fb46271ff17ade147c007b952322 ] In-memory variables so we don't have to keep pushing stuff via inputs
+1. [ 2cfdf17cf802fb46271ff17ade147c007b952322 ] Constants (depends on Variables)
+
 
 ## Operators and Basic Nodes
 
