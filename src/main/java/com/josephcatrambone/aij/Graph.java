@@ -2,84 +2,100 @@ package com.josephcatrambone.aij;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+
+import com.josephcatrambone.aij.nodes.*;
 
 /**
  * Created by jcatrambone on 9/12/16.
  */
-public abstract class Graph {
-	public enum NODE_OPERATION {ABS, ADD, ADD_BROADCAST, EXP, INPUT, INVERT, LOG, MULTIPLY, MATRIXMULTIPLY, NEGATE, POWER, POWER2, SIGMOID, SUBTRACT, TANH, TRANSPOSE, TRACE};
-	public List<String> names;
-	public List<NODE_OPERATION> ops;
-	public List<int[]> arguments;
-	public List<Dimension> shapes;
+public class Graph {
+	ArrayList<Node> nodes = new ArrayList<>();
 
-	public Graph() {
-		this.names = new ArrayList<>();
-		this.ops = new ArrayList<>();
-		this.arguments = new ArrayList<>();
-		this.shapes = new ArrayList<>();
-	}
-
-	public int addNode(String name, NODE_OPERATION op, int[] inputs) {
-		int id = this.names.size();
-		this.names.add(name);
-		this.ops.add(op);
-		this.arguments.add(inputs);
-		this.shapes.add(getShape(id));
-		return id;
-	}
-
-	public int addNode(String name, NODE_OPERATION op, int[] inputs, Dimension shape) {
-		int id = this.names.size();
-		this.names.add(name);
-		this.ops.add(op);
-		this.arguments.add(inputs);
-		this.shapes.add(shape);
-		return id;
-	}
-
-	public int addInput(String name, Dimension shape) {
-		return addNode(name, NODE_OPERATION.INPUT, new int[]{}, shape);
-	}
-
-	public Dimension getShape(int node) {
-		switch(ops.get(node)) {
-			case ABS:
-			case ADD:
-			case ADD_BROADCAST:
-			case EXP:
-			case INVERT:
-			case LOG:
-			case MULTIPLY:
-			case NEGATE:
-			case POWER:
-			case POWER2:
-			//case SOFTMAX:
-			case SUBTRACT:
-			case SIGMOID:
-			case TANH:
-				return getShape(arguments.get(node)[0]); // Get left arg.
-			case MATRIXMULTIPLY:
-				//leftShape.getColumns() == rightShape.getRows()
-				return new Dimension(getShape(arguments.get(node)[1]).getColumns(), getShape(arguments.get(node)[0]).getRows());
-			case TRANSPOSE:
-				return new Dimension(getShape(arguments.get(node)[0]).getHeight(), getShape(arguments.get(node)[0]).getWidth());
-			case TRACE:
-				Dimension childArgs = getShape(arguments.get(node)[0]); // Flatten to 1D.
-				return new Dimension(Math.min(childArgs.getWidth(), childArgs.getHeight()),1);
-			case INPUT:
-				return shapes.get(node); // Assume we've already inserted it.
-			default:
-				throw new RuntimeException();
+	public Node addNode(Node n) {
+		n.id = nodes.size();
+		for(int inp : n.inputs) {
+			if(inp == -1 || inp >= nodes.size()) {
+				throw new RuntimeException("Node added to graph without dependencies: ID " + n.id);
+			}
 		}
+		nodes.add(n);
+		return n; // A pass-through.
 	}
 
-	public void setShape(int node, Dimension dim) {
-		this.shapes.set(node, dim);
+	public String serializeToString() {
+		return "";
 	}
 
-	public abstract float[] getOutput(HashMap<Integer, float[]> inputs, int node);
+	public void restoreFromString(String s) {
+		throw new RuntimeException("Not implemented.");
+	}
 
-	public abstract float[][] getGradient(HashMap<Integer, float[]> inputs, int node);
+	public float[] getOutput(HashMap<Node, float[]> inputs, Node node) {
+		HashMap<Node, Matrix> remappedInputs = floatMapToMatrixMap(inputs);
+		return forward(remappedInputs)[node.id].data;
+	}
+
+	private HashMap<Node, Matrix> floatMapToMatrixMap(HashMap<Node, float[]> map) {
+		if(map == null) { return null; }
+		HashMap<Node, Matrix> hm = new HashMap<>();
+		for(Node k : map.keySet()) {
+			hm.put(k, new Matrix(k.rows, k.columns, map.get(k)));
+		}
+		return hm;
+	}
+
+	public Matrix[] forward(HashMap<Node, Matrix> datafeed) {
+		Matrix[] results = new Matrix[nodes.size()];
+		for(int i=0; i < nodes.size(); i++) {
+			// Special case: inputs read from the input map.
+			if(nodes.get(i) instanceof InputNode) {
+				results[i] = datafeed.get(nodes.get(i));
+			} else {
+				// Compile an array of values to be passed into the node.
+				Node n = nodes.get(i);
+				Matrix[] forwardInputs = new Matrix[n.inputs.length];
+				for(int j=0; j < forwardInputs.length; j++) {
+					forwardInputs[j] = results[n.inputs[j]];
+				}
+				results[i] = nodes.get(i).forward(forwardInputs);
+			}
+		}
+		return results;
+	}
+
+	/*
+	public float[][] getGradient(HashMap<Integer, float[]> inputs, float[][] forward, int node) {
+		if(forward == null) {
+			HashMap<Integer,Matrix> feed = floatMapToMatrixMap(inputs);
+			Matrix[] fwd = forward(feed);
+			Matrix[] grad = getGradient(feed, fwd, node);
+			float[][] res = new float[nodes.size()][];
+			for(int i=0; i < grad.length; i++) {
+				res[i] = grad[i].data;
+			}
+			return res;
+		} else {
+			// Convert forward to
+		}
+	}*/
+
+	public Matrix[] getGradient(HashMap<Node, Matrix> inputFeed, Matrix[] fwd, Node node) {
+		if(fwd == null) {
+			fwd = forward(inputFeed);
+		}
+		Matrix[] grads = new Matrix[nodes.size()];
+		grads[node.id] = Matrix.ones(node.rows, node.columns);
+		for(int i=node.id; i >= 0; i--) {
+			// For all the inputs to this node, calculate their adjoints from this adjoint.
+			Matrix[] argInputs = new Matrix[nodes.get(i).inputs.length];
+			for(int j=0; j < argInputs.length; j++) {
+				argInputs[j] = fwd[nodes.get(i).inputs[j]];
+			}
+			Matrix[] nextAdjoints = nodes.get(i).reverse(argInputs, grads[i]);
+			for(int j=0; j < nodes.get(i).inputs.length; j++) {
+				grads[nodes.get(i).inputs[j]].elementOp_i(nextAdjoints[j], (a,b) -> a+b);
+			}
+		}
+		return grads;
+	}
 }
