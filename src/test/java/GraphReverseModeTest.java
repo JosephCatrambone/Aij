@@ -113,5 +113,9 @@ public class GraphReverseModeTest {
 		fd.put(x, new float[]{1.0f, 1.0f});
 		res = g.getOutput(fd, out);
 		org.junit.Assert.assertEquals(0.0f, res[0], 0.2f);
+
+		// Try with resource.
+		
+		System.out.println(g.serializeToString());
 	}
 }

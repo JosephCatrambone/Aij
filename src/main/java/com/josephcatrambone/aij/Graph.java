@@ -24,7 +24,11 @@ public class Graph {
 	}
 
 	public String serializeToString() {
-		return "";
+		StringBuilder s = new StringBuilder();
+		for(Node n : nodes) {
+			s.append(n.toString() + "\n");
+		}
+		return s.toString();
 	}
 
 	public void restoreFromString(String s) {
