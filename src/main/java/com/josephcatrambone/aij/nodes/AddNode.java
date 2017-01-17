@@ -7,6 +7,8 @@ import com.josephcatrambone.aij.Matrix;
  */
 public class AddNode extends Node {
 
+	public AddNode() { super(); } // Need empty constructor.
+
 	public AddNode(Node left, Node right) {
 		super(left.rows, left.columns, left, right);
 	}

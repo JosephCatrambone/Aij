@@ -4,6 +4,8 @@ import com.josephcatrambone.aij.Matrix;
 
 class LogNode extends Node {
 
+	public LogNode() { super(); }
+
 	public LogNode(Node input) {
 		super(input);
 	}

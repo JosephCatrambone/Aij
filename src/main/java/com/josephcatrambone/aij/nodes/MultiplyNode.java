@@ -4,6 +4,8 @@ import com.josephcatrambone.aij.Matrix;
 
 public class MultiplyNode extends Node {
 
+	public MultiplyNode() { super(); }
+
 	public MultiplyNode(Node left, Node right) {
 		this.rows = left.rows;
 		this.columns = left.columns;

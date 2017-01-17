@@ -5,6 +5,8 @@ import com.josephcatrambone.aij.Matrix;
 public class VariableNode extends Node {
 	Matrix variable;
 
+	public VariableNode() { super(); }
+
 	public VariableNode(int rows, int columns) {
 		variable = new Matrix(rows, columns);
 		this.rows = rows;

@@ -2,6 +2,7 @@ package com.josephcatrambone.aij;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.StringJoiner;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
@@ -135,21 +136,29 @@ public class Matrix implements Serializable {
 		sb.append(",");
 		sb.append(columns);
 		sb.append("]");
-		sb.append("[");
+
+		StringJoiner sj = new StringJoiner(",", "[", "");
 		for(float f : data) {
-			sb.append(f);
-			sb.append(",");
+			sj.add(""+f);
 		}
-		sb.append("]");
+		sb.append(sj.toString());
 		return sb.toString();
 	}
 
 	public static Matrix fromString(String s) {
-		String[] tokens = s.split("][");
-		if(tokens[0] != "[MATRIX") {
-			System.err.println("Failed to deserialize Matrix from string.");
+		String[] tokens = s.split("]\\[");
+		if(!tokens[0].equals("[MATRIX")) {
+			System.err.println("Failed to deserialize Matrix from string.  Expected '[MATRIX'.  Got '" + tokens[0] + "'");
 			return null;
 		}
-		return null;
+
+		String[] dims = tokens[1].split(",");
+		String[] data = tokens[2].split(",");
+		Matrix m = new Matrix(Integer.parseInt(dims[0]), Integer.parseInt(dims[1]));
+		m.data = new float[m.rows*m.columns];
+		for(int i=0; i < m.data.length; i++) {
+			m.data[i] = Float.parseFloat(data[i]);
+		}
+		return m;
 	}
 }

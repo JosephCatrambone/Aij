@@ -3,6 +3,9 @@ package com.josephcatrambone.aij.nodes;
 import com.josephcatrambone.aij.Matrix;
 
 public class SubtractNode extends Node {
+
+	public SubtractNode() { super(); }
+
 	public SubtractNode(Node left, Node right) {
 		super(left.rows, left.columns, left, right);
 	}

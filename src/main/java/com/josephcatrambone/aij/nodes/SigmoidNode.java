@@ -4,6 +4,8 @@ import com.josephcatrambone.aij.Matrix;
 
 public class SigmoidNode extends Node {
 
+	public SigmoidNode() { super(); }
+
 	public SigmoidNode(Node input) {
 		super(input);
 	}

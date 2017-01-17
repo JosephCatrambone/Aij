@@ -3,6 +3,8 @@ package com.josephcatrambone.aij.nodes;
 import com.josephcatrambone.aij.Matrix;
 
 public class ExpNode extends Node {
+	public ExpNode() { super(); }
+
 	public ExpNode(Node input) {
 		super(input);
 	}

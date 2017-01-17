@@ -6,6 +6,8 @@ import com.josephcatrambone.aij.Matrix;
  * Created by josephcatrambone on 1/13/17.
  */
 public class InputNode extends Node {
+	public InputNode() { super(); }
+
 	public InputNode(int rows, int columns) {
 		this.columns = columns;
 		this.rows = rows;

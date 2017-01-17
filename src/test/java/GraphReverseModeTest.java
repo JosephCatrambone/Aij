@@ -82,7 +82,7 @@ public class GraphReverseModeTest {
 		// Do a few iterations.
 		final float LEARNING_RATE = 0.1f;
 		HashMap<Node, Matrix> inputFeed = new HashMap<>();
-		for(int i=0; i < 20000; i++) {
+		for(int i=0; i < 200000; i++) {
 			float a = random.nextFloat();
 			float b = random.nextFloat();
 			inputFeed.put(x, new Matrix(1, 2, new float[]{a, b}));
@@ -100,22 +100,36 @@ public class GraphReverseModeTest {
 		fd.put(y, new float[]{0.0f});
 		fd.put(x, new float[]{0.0f, 0.0f});
 		float[] res = g.getOutput(fd, out);
-		org.junit.Assert.assertEquals(0.0f, res[0], 0.2f);
+		//org.junit.Assert.assertEquals(0.0f, res[0], 0.2f);
+		org.junit.Assert.assertTrue(res[0] < 0.5f);
 
 		fd.put(x, new float[]{0.0f, 1.0f});
 		res = g.getOutput(fd, out);
-		org.junit.Assert.assertEquals(1.0f, res[0], 0.2f);
+		org.junit.Assert.assertTrue(res[0] > 0.5f);
 
 		fd.put(x, new float[]{1.0f, 0.0f});
 		res = g.getOutput(fd, out);
-		org.junit.Assert.assertEquals(1.0f, res[0], 0.2f);
+		org.junit.Assert.assertTrue(res[0] > 0.5f);
 
 		fd.put(x, new float[]{1.0f, 1.0f});
 		res = g.getOutput(fd, out);
-		org.junit.Assert.assertEquals(0.0f, res[0], 0.2f);
+		org.junit.Assert.assertTrue(res[0] < 0.5f);
 
 		// Try with resource.
 		
 		System.out.println(g.serializeToString());
+		try(BufferedWriter fout = new BufferedWriter(new FileWriter("xor_test.model"))) {
+			fout.write(g.serializeToString());
+		} catch(IOException ioe) {
+
+		}
+
+		try(BufferedReader fin = new BufferedReader(new FileReader("xor_test.model"))) {
+			g.restoreFromString(fin.lines().reduce("", (a, b) -> a+"\n"+b));
+		} catch(FileNotFoundException fnfe) {
+
+		} catch(IOException ioe) {
+
+		}
 	}
 }

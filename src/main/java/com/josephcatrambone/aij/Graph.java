@@ -1,6 +1,7 @@
 package com.josephcatrambone.aij;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import com.josephcatrambone.aij.nodes.*;
@@ -32,7 +33,16 @@ public class Graph {
 	}
 
 	public void restoreFromString(String s) {
-		throw new RuntimeException("Not implemented.");
+		String[] lines = s.split("[\\r\\n]+"); // Also removes empty lines.
+		// Check for blank first line.
+		if(lines[0].equals("")) {
+			lines = Arrays.copyOfRange(lines, 1, lines.length); // Remove first line.
+		}
+		// Create new array and populate.
+		nodes = new ArrayList<>(lines.length); // Initial capacity = lines.length.
+		for(int i=0; i < lines.length; i++) {
+			nodes.add(i, Node.fromString(lines[i], nodes));
+		}
 	}
 
 	public float[] getOutput(HashMap<Node, float[]> inputs, Node node) {

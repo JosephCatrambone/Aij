@@ -7,6 +7,8 @@ public class BroadcastNode extends Node {
 	int rowRepeats = 0;
 	int columnRepeats = 0;
 
+	public BroadcastNode() { super(); }
+
 	public BroadcastNode(Node input, int columnRepeats, int rowRepeats) {
 		this.rows = input.rows* rowRepeats;
 		this.columns = input.columns* columnRepeats;

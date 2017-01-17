@@ -5,6 +5,8 @@ import com.josephcatrambone.aij.Matrix;
 public class PowerNode extends Node {
 	float exponent;
 
+	public PowerNode() { super(); }
+
 	public PowerNode(Node input, float e) {
 		super(input);
 		this.exponent = e;

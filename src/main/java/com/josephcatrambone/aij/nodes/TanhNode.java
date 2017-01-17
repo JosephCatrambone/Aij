@@ -3,6 +3,9 @@ package com.josephcatrambone.aij.nodes;
 import com.josephcatrambone.aij.Matrix;
 
 public class TanhNode extends Node {
+
+	public TanhNode() { super(); }
+
 	public TanhNode(Node input) {
 		super(input);
 	}
