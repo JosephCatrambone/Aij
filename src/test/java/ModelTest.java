@@ -34,7 +34,7 @@ public class ModelTest {
 		};
 
 		for(int i=0; i < 100000; i++) {
-			m.fit(x, y, 0.1f, Model.Loss.ABS);
+			m.fit(x, y, 0.1f, Model.Loss.SQUARED);
 			System.out.println(m.predict(x[0])[0]);
 			System.out.println(m.predict(x[1])[0]);
 			System.out.println(m.predict(x[2])[0]);

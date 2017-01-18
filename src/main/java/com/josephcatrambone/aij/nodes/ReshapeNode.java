@@ -31,6 +31,6 @@ public class ReshapeNode extends Node {
 
 	@Override
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
-		return new Matrix[]{new Matrix(forward[0].rows, forward[0].columns, (r,c) -> adjoint.data[c+r*adjoint.columns])};
+		return new Matrix[]{new Matrix(forward[0].rows, forward[0].columns, (r,c) -> adjoint.data[c+r*forward[0].columns])};
 	}
 }

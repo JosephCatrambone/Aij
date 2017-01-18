@@ -35,7 +35,7 @@ public class Model extends Graph {
 	}
 
 	private float randomInit() {
-		return 0.1f*((2.0f*random.nextFloat())-1.0f);
+		return ((2.0f*random.nextFloat())-1.0f);
 	}
 
 	private VariableNode randomWeight(int rows, int columns) {

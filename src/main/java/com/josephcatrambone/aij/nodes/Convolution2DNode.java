@@ -75,7 +75,7 @@ public class Convolution2DNode extends Node {
 					for(int ck=0; ck < kernel.columns; ck++) {
 						int r2 = rk-kernel.rows/2;
 						int c2 = ck-kernel.columns/2;
-						if(inR+r2 >= 0 && inR+r2 < this.rows && inR+c2 >= 0 && inR+c2 <= this.columns) {
+						if(inR+r2 >= 0 && inR+r2 < this.rows && inC+c2 >= 0 && inC+c2 <= this.columns) {
 							inputAdjoint.set(inR+r2, inC+c2, inputAdjoint.get(inR+r2, inC+c2) + adjoint.get(r,c)*kernel.get(rk, ck));
 							kernelAdjoint.set(rk, ck, kernelAdjoint.get(rk, ck)+adjoint.get(r,c)*input.get(inR+r2, inC+c2));
 						}

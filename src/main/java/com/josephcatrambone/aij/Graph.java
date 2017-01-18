@@ -87,15 +87,6 @@ public class Graph {
 		*/
 	}
 
-	private HashMap<Node, Matrix> floatMapToMatrixMap(HashMap<Node, float[]> map) {
-		if(map == null) { return null; }
-		HashMap<Node, Matrix> hm = new HashMap<>();
-		for(Node k : map.keySet()) {
-			hm.put(k, new Matrix(k.rows, k.columns, map.get(k)));
-		}
-		return hm;
-	}
-
 	public Matrix[] forward(HashMap<Node, Matrix> datafeed) {
 		Matrix[] results = new Matrix[nodes.size()];
 		for(int i=0; i < nodes.size(); i++) {
