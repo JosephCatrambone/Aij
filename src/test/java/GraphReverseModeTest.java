@@ -58,6 +58,86 @@ public class GraphReverseModeTest {
 	}
 
 	@Test
+	public void testConvolution() {
+		final int ITERATIONS = 1000;
+		final float LEARNING_RATE = 0.1f;
+
+		Random random = new Random();
+
+		// We want to train a classifier to recognize circles and rectangles.
+		Graph g = new Graph();
+		InputNode img = new InputNode(64, 64);
+		VariableNode conv1_weight = new VariableNode(5, 5);
+		Node conv1 = new TanhNode(new Convolution2DNode(img, conv1_weight, 1, 0));
+		VariableNode conv2_weight = new VariableNode(5, 5);
+		Node conv2 = new TanhNode(new Convolution2DNode(conv1, conv2_weight, 3, 0));
+		Node flatten = new ReshapeNode(conv2, 1, -1);
+		VariableNode fc_weight = new VariableNode(flatten.columns, 2);
+		Node fc = new MatrixMultiplyNode(flatten, fc_weight);
+		Node prediction = new TanhNode(fc);
+
+		InputNode truth = new InputNode(1, 2);
+		Node difference = new SubtractNode(prediction, truth);
+		Node error = new AbsNode(difference);
+		g.addNode(error);
+
+		// Make our training data.
+		HashMap <Node,Matrix> inputFeed = new HashMap<>();
+		for(int i=0; i < 1000; i++) {
+			Matrix canvas = new Matrix(64, 64);
+			Matrix label = new Matrix(1, 2);
+			if(random.nextBoolean()) { // Square or circle?
+				// Square.
+				int fromX = random.nextInt(64);
+				int fromY = random.nextInt(64);
+				int toX = random.nextInt(64);
+				int toY = random.nextInt(64);
+				// Fill in the rectangle.
+				for(int r=Math.min(fromY, toY); r < Math.max(fromY, toY); r++) {
+					for(int c=Math.min(fromX, toX); c < Math.max(fromX, toX); c++) {
+						canvas.set(r, c, 1.0f);
+					}
+				}
+				label.set(0, 0, 1.0f); // Square is 0,0.
+			} else {
+				// Circle.
+				int radius = random.nextInt(8);
+				int centerX = random.nextInt(64-8);
+				int centerY = random.nextInt(64-8);
+				for(int r=0; r < 64; r++) {
+					for(int c=0; c < 64; c++) {
+						int dx = c-centerX;
+						int dy = r-centerY;
+						if(dx*dx + dy*dy < radius*radius) {
+							canvas.set(r, c, 1.0f);
+						}
+					}
+				}
+				label.set(0, 1, 1.0f); // Circle.
+			}
+
+			// Add our data.
+			inputFeed.put(img, canvas);
+			inputFeed.put(truth, label);
+
+			// Every 100, we test instead of train.
+			if(i % 100 == 0) {
+				Matrix[] res = g.forward(inputFeed);
+				System.out.println("Predicted: " + res[prediction.id]);
+				System.out.println("Correct: " + label);
+			} else {
+				// Train one iteration.
+				Matrix[] grads = g.getGradient(inputFeed, null, error);
+
+				// Apply the gradients to all the variables.
+				fc_weight.setVariable(fc_weight.getVariable().elementOp(grads[fc_weight.id], (a, b) -> a - (LEARNING_RATE * b)));
+				conv2_weight.setVariable(conv2_weight.getVariable().elementOp(grads[conv2_weight.id], (a, b) -> a - (LEARNING_RATE * b)));
+				conv1_weight.setVariable(conv1_weight.getVariable().elementOp(grads[conv1_weight.id], (a, b) -> a - (LEARNING_RATE * b)));
+			}
+		}
+	}
+
+	@Test
 	public void testMLP() {
 		Graph g = new Graph();
 		InputNode x = new InputNode(1, 2);

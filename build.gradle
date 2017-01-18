@@ -17,7 +17,7 @@ dependencies {
 	// For JBlas
 	//compile 'org.jblas:jblas:1.2.4'
 	//runtime 'org.jblas:jblas:1.2.4'
-	compile 'org.jocl:jocl:2.0.0'
+	//compile 'org.jocl:jocl:2.0.0'
 }
 
 /*

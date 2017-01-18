@@ -3,6 +3,7 @@ package com.josephcatrambone.aij;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Stack;
 
 import com.josephcatrambone.aij.nodes.*;
 
@@ -46,8 +47,44 @@ public class Graph {
 	}
 
 	public float[] getOutput(HashMap<Node, float[]> inputs, Node node) {
+		// getOutput is different slightly from forward in that we don't care about unused paths.
+		// For forward, we want to be sure _all_ different node values are populated in order.
+		// getOutput spends a cycle or two figuring out which paths it can ignore (so we don't pay for training paths).
+		Stack<Node> toProcess = new Stack<>();
+		Matrix[] results = new Matrix[node.id+1];
+
+		// Traverse our graph from the output to the inputs.
+		toProcess.push(node);
+		while(!toProcess.empty()) {
+			Node n = toProcess.pop();
+			// Allocate an empty matrix for our results OR copy from input.
+			if(n instanceof InputNode) {
+				results[n.id] = new Matrix(n.rows, n.columns, inputs.get(n));
+			} else {
+				results[n.id] = new Matrix(n.rows, n.columns);
+			}
+			for(Node inp : n.inputs) {
+				toProcess.push(inp);
+			}
+		}
+
+		// Compute the values, skipping the dead nodes.
+		for(int i=0; i < results.length; i++) {
+			Node n = nodes.get(i);
+			if(results[i] == null || n instanceof InputNode) { continue; }
+			// Compile an array of values to be passed into the node.
+			Matrix[] forwardInputs = new Matrix[n.inputs.length];
+			for(int j=0; j < forwardInputs.length; j++) {
+				forwardInputs[j] = results[n.inputs[j].id];
+			}
+			results[i] = nodes.get(i).forward(forwardInputs);
+		}
+		return results[node.id].data;
+
+		/* // If we didn't care about path pruning, we could just do this:
 		HashMap<Node, Matrix> remappedInputs = floatMapToMatrixMap(inputs);
 		return forward(remappedInputs)[node.id].data;
+		*/
 	}
 
 	private HashMap<Node, Matrix> floatMapToMatrixMap(HashMap<Node, float[]> map) {
