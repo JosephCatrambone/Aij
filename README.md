@@ -6,12 +6,13 @@ By default, this library depends only on OpenCL.  If you remove the GPUGraph.jav
 ## TODO:
 
 1. Input and Variable aren't supported as right-hand-side operators to power or exp functions
-1. JSON Serialization of Graphs (?)
 1. Operator broadcasting of inputs
-1. Convolution
+1. Examples and better documentation.
 
 ## Done:
 
+1. [ 238b71294fbd6743ab8440daa5fd4b2ace38479e ] JSON Serialization of Graphs (?) Text serialization, but whatever.
+1. [ 6fc2a6c1835359d714028237a9827f029e90a537 ] Convolution
 1. [ 2cfdf17cf802fb46271ff17ade147c007b952322 ] Refactor how nodes are handled in the graph so we don't have a single huge file
 1. [ 2cfdf17cf802fb46271ff17ade147c007b952322 ] In-memory variables so we don't have to keep pushing stuff via inputs
 1. [ 2cfdf17cf802fb46271ff17ade147c007b952322 ] Constants (depends on Variables)
@@ -21,7 +22,7 @@ By default, this library depends only on OpenCL.  If you remove the GPUGraph.jav
 
 - [x] ABS
 - [x] ADD
-- [ ] CONVOLVE3
+- [x] CONVOLVE3
 - [ ] DECONVOLVE3
 - [x] EXP
 - [x] INPUT
@@ -36,7 +37,6 @@ By default, this library depends only on OpenCL.  If you remove the GPUGraph.jav
 - [x] SUBTRACT
 - [x] TANH
 - [ ] TRACE
-- [ ] TRANSPOSE
 
 ## Considerations
 

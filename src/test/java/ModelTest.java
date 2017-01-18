@@ -16,7 +16,7 @@ public class ModelTest {
 	@Test
 	public void testGrad() {
 		Model m = new Model(1, 2);
-		m.addDenseLayer(5, Model.Activation.TANH);
+		m.addDenseLayer(10, Model.Activation.TANH);
 		m.addDenseLayer(1, Model.Activation.SIGMOID);
 
 		float[][] x = new float[][] {
@@ -33,8 +33,8 @@ public class ModelTest {
 				{0}
 		};
 
-		for(int i=0; i < 100000; i++) {
-			m.fit(x, y, 0.1f, Model.Loss.SQUARED);
+		for(int i=0; i < 10000; i++) {
+			m.fit(x, y, 0.5f, Model.Loss.SQUARED);
 			System.out.println(m.predict(x[0])[0]);
 			System.out.println(m.predict(x[1])[0]);
 			System.out.println(m.predict(x[2])[0]);

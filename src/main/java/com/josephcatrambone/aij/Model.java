@@ -34,13 +34,18 @@ public class Model extends Graph {
 		trainableVariables = new ArrayList<>();
 	}
 
-	private float randomInit() {
-		return ((2.0f*random.nextFloat())-1.0f);
-	}
-
 	private VariableNode randomWeight(int rows, int columns) {
 		VariableNode w = new VariableNode(rows, columns);
-		w.setVariable(new Matrix(rows, columns, (i,j) -> randomInit()));
+		w.setVariable(new Matrix(rows, columns, (i,j) -> (2.0f*random.nextFloat())-1.0f));
+		trainableVariables.add(w);
+		return w;
+	}
+
+	private VariableNode xavierWeight(int rows, int columns) {
+		VariableNode w = new VariableNode(rows, columns);
+		// Xavier says 2 + (n_in + n_out).
+		float scaling = 2.0f / (float)rows; // Based on a recent paper by He, Rang, Zhen, and Sun.
+		w.setVariable(new Matrix(rows, columns, (i,j) -> scaling*(float)random.nextGaussian()));
 		trainableVariables.add(w);
 		return w;
 	}
@@ -110,8 +115,7 @@ public class Model extends Graph {
 
 	public void addDenseLayer(int hiddenSize, Activation act) {
 		assert(outputNode.rows == 1); // TODO: Throw error.
-		VariableNode w = randomWeight(outputNode.columns, hiddenSize);
-		w.getVariable().elementOp_i(i -> randomInit());
+		VariableNode w = xavierWeight(outputNode.columns, hiddenSize);
 		VariableNode b = randomWeight(1, hiddenSize);
 		Node prod = new AddNode(new MatrixMultiplyNode(outputNode, w), b);
 
@@ -120,8 +124,7 @@ public class Model extends Graph {
 	}
 
 	public void addConvLayer(int kernelWidth, int kernelHeight, int padding, int stride, Activation act) {
-		VariableNode kernel = randomWeight(kernelHeight, kernelWidth);
-		kernel.getVariable().elementOp_i(i -> randomInit());
+		VariableNode kernel = xavierWeight(kernelHeight, kernelWidth);
 		Node conv = new Convolution2DNode(outputNode, kernel, stride, padding);
 		VariableNode bias = randomWeight(conv.rows, conv.columns);
 		Node prod = new AddNode(conv, bias);

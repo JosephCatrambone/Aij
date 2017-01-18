@@ -9,6 +9,7 @@ public abstract class Node {
 	private static final String STRING_DELIMITER = "|"; // Regex, so we need to delimit like this.
 
 	public int id = -1;
+	public String name = "";
 	public Node[] inputs; // int[] makes it easier to serialize, but it's more of a hassle to build the graph.
 	public int rows, columns;
 
@@ -34,6 +35,7 @@ public abstract class Node {
 		StringJoiner sj = new StringJoiner(STRING_DELIMITER);
 		sj.add(this.getClass().getCanonicalName());
 		sj.add(""+this.id);
+		sj.add(this.name);
 		sj.add(""+this.rows);
 		sj.add(""+this.columns);
 
@@ -66,12 +68,13 @@ public abstract class Node {
 		}
 
 		instance.id = Integer.parseInt(tokens[1]);
-		instance.rows = Integer.parseInt(tokens[2]);
-		instance.columns = Integer.parseInt(tokens[3]);
+		instance.name = tokens[2];
+		instance.rows = Integer.parseInt(tokens[3]);
+		instance.columns = Integer.parseInt(tokens[4]);
 
 		// If this node has inputs...
-		if(tokens.length > 4 && !tokens[4].equals("")) {
-			String[] inputIDs = tokens[4].split(",");
+		if(tokens.length > 5 && !tokens[5].equals("")) {
+			String[] inputIDs = tokens[5].split(",");
 			instance.inputs = new Node[inputIDs.length];
 			for (int i = 0; i < inputIDs.length; i++) {
 				instance.inputs[i] = possibleInputs.get(Integer.parseInt(inputIDs[i]));
@@ -79,8 +82,8 @@ public abstract class Node {
 		}
 
 		// If this node has extra data...
-		if(tokens.length > 5) {
-			instance.extraDataFromString(tokens[5]);
+		if(tokens.length > 6) {
+			instance.extraDataFromString(tokens[6]);
 		}
 		return instance;
 	}
