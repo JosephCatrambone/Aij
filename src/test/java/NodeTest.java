@@ -35,20 +35,35 @@ public class NodeTest {
 		}
 
 		// Calculate the exact gradient.
-		Matrix grad = n.reverse(new Matrix[]{fwd}, Matrix.ones(fwd.rows, fwd.columns))[0];
-		float[] calculatedGradient = grad.getSlice(1, 2, 0, -1).data;
+		Matrix grad = n.reverse(new Matrix[]{arg}, Matrix.ones(fwd.rows, fwd.columns))[0];
+		float[] calculatedGradient = grad.getSlice(1, 2, 0, 10).data;
+
+		// Dump output.
+		System.out.println("Numerical gradient: " + Arrays.toString(numericalGradient));
+		System.out.println("Calculated gradient: " + Arrays.toString(calculatedGradient));
+
+		// Gradient error magnitude.
+		for(int i=0; i < domain.length; i++) {
+			if(calculatedGradient[i] == 0 && numericalGradient[i] == 0) {
+				continue; // If there's no grad, we're okay.
+			}
+			float p = calculatedGradient[i];
+			float q = numericalGradient[i];
+			org.junit.Assert.assertTrue("Gradient order less than threshold?  " + p + " vs " + q, Math.abs(p-q)/Math.max(p,q) < threshold);
+		}
 
 		// Calculate and check the gradient order.
-		org.junit.Assert.assertArrayEquals(numericalGradient, calculatedGradient, threshold);
+		//org.junit.Assert.assertArrayEquals(numericalGradient, calculatedGradient, threshold);
 	}
 
 	@Test
 	public void testGrad() {
 		InputNode x = new InputNode(1, 10);
-		TanhNode n = new TanhNode(x);
-		float[] values = new float[]{-10, -5, -2, -1, 0.1f, 0.1f, 1, 2, 5, 10};
+		float[] values = new float[]{-10, -5, -2, -1, -0.1f, 0.1f, 1, 2, 5, 10};
 
-		testGradient(n, values, 0.1f, 0.01f);
+		testGradient(new TanhNode(x), values, 0.01f, 0.5f);
+		testGradient(new SigmoidNode(x), values, 0.01f, 1.0f);
+		testGradient(new ReLUNode(x), values, 0.01f, 0.2f);
 
 	}
 
