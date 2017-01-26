@@ -28,6 +28,8 @@ task copyToLib( type: Copy ) {
 */
 
 jar {
+	// Add sources to compiled jar instead of building a separate jar file.
+	from sourceSets.main.allSource
 	//dependsOn copyToLib
 	from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
 	/* // Not an executable JAR, so we don't need the manifest.

@@ -64,6 +64,7 @@ public class Model extends Graph {
 					lossNode = new PowerNode(diff, 2.0f);
 					break;
 			}
+			lossNode = new RowSumNode(lossNode); // Roll up into a single value.
 			addNode(lossNode);
 		}
 
@@ -104,7 +105,7 @@ public class Model extends Graph {
 			case NONE:
 				return n;
 			case RELU:
-				throw new RuntimeException("Not implemented.");
+				return new ReLUNode(n);
 			case SIGMOID:
 				return new SigmoidNode(n);
 			case TANH:
