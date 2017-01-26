@@ -23,7 +23,7 @@ By default, this library depends only on OpenCL.  If you remove the GPUGraph.jav
 - [x] ABS
 - [x] ADD
 - [x] CONVOLVE3
-- [ ] DECONVOLVE3
+- [X] DECONVOLVE3
 - [x] EXP
 - [x] INPUT
 - [x] INVERT
@@ -38,23 +38,14 @@ By default, this library depends only on OpenCL.  If you remove the GPUGraph.jav
 - [x] TANH
 - [ ] TRACE
 
-## Considerations
+## Known Issues
 
-### Broadcasting.
+### Backprop in Softmax
 
-Right now I have no idea how I want to implement broadcasting.  It's an open problem.
+I need to figure out the calculus behind softmax in the reverse direction.  
 
-One idea might be to have a 'RESIZE' command in the graph, so when we're doing training, we can resize elements to specific dimension, then when running set them back to other sizes.
+### Backprop in Convolution
 
-### Variable + Update nodes.
+I think there's a bug in Conv2D.  One of my applications' losses isn't decreasing when Conv layers are present.  Need to investigate.
 
-When using the library, I found myself getting sick of doing inputs.replace(arg, float[]{}) when new values came in.  More so, I got sick of reading into arrays and then assigning them back to the inputs, ESPECIALLY for constants like exponents.
-
-If I include a 'variable' node, I'm going to need an 'update' node which assigns a value to a variable.  That should save a memory copy in the GPU case and make things run much faster.
-
-### Training Word2Vec.
-
-I'm hitting a small issue with word2vec.  I don't want to have to build a whole extra graph to do the decoding, so it would be nice to have a 'set internal state' method, but that's also a hassle and makes things messy.  
-
-Currently, a Wikipedia sample with 22149 words and 10000 sentences (window size 5, batch size 1) takes about 10053ms to train per batch on the CPU.
 
