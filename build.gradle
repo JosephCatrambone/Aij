@@ -31,7 +31,7 @@ jar {
 	// Add sources to compiled jar instead of building a separate jar file.
 	from sourceSets.main.allSource
 	//dependsOn copyToLib
-	from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+	//from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
 	/* // Not an executable JAR, so we don't need the manifest.
 	manifest {
 		attributes 'Implementation-Title': 'Aij',
@@ -39,13 +39,6 @@ jar {
 			//'Main-Class': 'com.josephcatrambone.aij.Main'
 	}
 	*/
-}
-
-task(quickRun, dependsOn: 'classes', type: JavaExec) {
-	//main = 'com.josephcatrambone.aij.Main'
-	classpath = sourceSets.main.runtimeClasspath
-	//args '1KSentences.txt'
-	//systemProperty 'simple.message', 'Running with arg 1KSentences.txt'
 }
 
 test {

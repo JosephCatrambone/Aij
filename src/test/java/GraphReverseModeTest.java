@@ -61,9 +61,9 @@ public class GraphReverseModeTest {
 	public void testConvShape() {
 		InputNode x = new InputNode(60, 60);
 		VariableNode k = new VariableNode(3, 3);
-		Convolution2DNode c = new Convolution2DNode(x, k, 1, 0);
+		Convolution2DNode c = new Convolution2DNode(x, k, 1, 1);
 		VariableNode j = new VariableNode(3, 3);
-		Deconvolution2DNode d = new Deconvolution2DNode(c, j, 1, 0);
+		Deconvolution2DNode d = new Deconvolution2DNode(c, j, 1, 1);
 
 		Graph g = new Graph();
 
@@ -84,9 +84,9 @@ public class GraphReverseModeTest {
 		Graph g = new Graph();
 		InputNode img = new InputNode(64, 64);
 		VariableNode conv1_weight = new VariableNode(5, 5);
-		Node conv1 = new TanhNode(new Convolution2DNode(img, conv1_weight, 1, 0));
+		Node conv1 = new TanhNode(new Convolution2DNode(img, conv1_weight, 1, 1));
 		VariableNode conv2_weight = new VariableNode(5, 5);
-		Node conv2 = new TanhNode(new Convolution2DNode(conv1, conv2_weight, 3, 0));
+		Node conv2 = new TanhNode(new Convolution2DNode(conv1, conv2_weight, 3, 1));
 		Node flatten = new ReshapeNode(conv2, 1, -1);
 		VariableNode fc_weight = new VariableNode(flatten.columns, 2);
 		Node fc = new MatrixMultiplyNode(flatten, fc_weight);
@@ -162,7 +162,7 @@ public class GraphReverseModeTest {
 		Node hidden = new TanhNode(new AddNode(new MatrixMultiplyNode(x, weight_ih), bias_h));
 		VariableNode weight_ho = new VariableNode(3, 1);
 		VariableNode bias_o = new VariableNode(1, 1);
-		Node out = new ReLUNode(new AddNode(new MatrixMultiplyNode(hidden, weight_ho), bias_o));
+		Node out = new SigmoidNode(new AddNode(new MatrixMultiplyNode(hidden, weight_ho), bias_o));
 		InputNode y = new InputNode(1, 1); // Target
 
 		Node error = new SubtractNode(y, out);
@@ -176,9 +176,9 @@ public class GraphReverseModeTest {
 		weight_ho.setVariable(new Matrix(3, 1, (i,j) -> random.nextFloat()));
 
 		// Do a few iterations.
-		final float LEARNING_RATE = 0.01f;
+		final float LEARNING_RATE = 0.4f;
 		HashMap<Node, Matrix> inputFeed = new HashMap<>();
-		for(int i=0; i < 2000; i++) {
+		for(int i=0; i < 10000; i++) {
 			float a = random.nextFloat();
 			float b = random.nextFloat();
 			inputFeed.put(x, new Matrix(1, 2, new float[]{a, b}));
@@ -191,7 +191,7 @@ public class GraphReverseModeTest {
 			bias_h.setVariable(bias_h.getVariable().elementOp(grad[bias_h.id], (w, dw) -> w - LEARNING_RATE*dw));
 			bias_o.setVariable(bias_o.getVariable().elementOp(grad[bias_o.id], (w, dw) -> w - LEARNING_RATE*dw));
 
-			System.out.println("Grad:" + grad[weight_ho.id]);
+			//System.out.println("Grad:" + grad[weight_ho.id]);
 		}
 
 		HashMap<Node, float[]> fd = new HashMap<>();
@@ -199,18 +199,18 @@ public class GraphReverseModeTest {
 		fd.put(x, new float[]{0.0f, 0.0f});
 		float[] res = g.getOutput(fd, out);
 		//org.junit.Assert.assertEquals(0.0f, res[0], 0.2f);
-		//org.junit.Assert.assertTrue(res[0] < 0.5f);
 		System.out.println(res[0]);
+		org.junit.Assert.assertTrue(res[0] < 0.5f);
 
 		fd.put(x, new float[]{0.0f, 1.0f});
 		res = g.getOutput(fd, out);
 		System.out.println(res[0]);
-		//org.junit.Assert.assertTrue(res[0] > 0.5f);
+		org.junit.Assert.assertTrue(res[0] > 0.5f);
 
 		fd.put(x, new float[]{1.0f, 0.0f});
 		res = g.getOutput(fd, out);
 		System.out.println(res[0]);
-		//org.junit.Assert.assertTrue(res[0] > 0.5f);
+		org.junit.Assert.assertTrue(res[0] > 0.5f);
 
 		fd.put(x, new float[]{1.0f, 1.0f});
 		res = g.getOutput(fd, out);

@@ -3,12 +3,12 @@ package com.josephcatrambone.aij.nodes;
 import com.josephcatrambone.aij.Matrix;
 
 public class Convolution2DNode extends Node {
-	int padding = 0;
-	int stride = 0;
+	int rowStride = 0;
+	int columnStride = 0;
 
 	public Convolution2DNode() { super(); }
 
-	public Convolution2DNode(Node input, Node kernel, int stride, int padding) {
+	public Convolution2DNode(Node input, Node kernel, int rowStride, int columnStride) {
 		// Performs a shallow 2D convolution on the input node.
 		// W1 H1 D1
 		// K = num filters.
@@ -19,12 +19,12 @@ public class Convolution2DNode extends Node {
 		// H2 = (H1 - F + 2P)/S + 1
 		// D = k
 		// For the 2D convolution, the number of filters is restricted to 1.
-		this.stride = stride;
-		this.padding = padding;
+		this.rowStride = rowStride;
+		this.columnStride = columnStride;
 
 		// F = kernel.width
-		int outputRows = (input.rows - kernel.rows + 2*padding)/stride + 1;
-		int outputColumns = (input.columns - kernel.columns + 2*padding)/stride + 1;
+		int outputRows = (input.rows - kernel.rows)/rowStride + 1;
+		int outputColumns = (input.columns - kernel.columns)/columnStride + 1;
 		this.rows = outputRows;
 		this.columns = outputColumns;
 		this.inputs = new Node[]{input, kernel};
@@ -38,17 +38,17 @@ public class Convolution2DNode extends Node {
 		for(int r=0; r < this.rows; r++) {
 			for(int c=0; c < this.columns; c++) {
 
-				int inR = padding+(r*stride);
-				int inC = padding+(c*stride);
+				int inRCenter = r*rowStride;
+				int inCCenter = c*columnStride;
 				float accumulator = 0;
 				// Center kernel at r,c
 				for(int rk = 0; rk < kernel.rows; rk++) {
 					for(int ck=0; ck < kernel.columns; ck++) {
 						// Delta position
-						int drk = rk-kernel.rows/2;
-						int dck = ck-kernel.columns/2;
-						if(inR+drk >= 0 && inR+drk < this.rows && inC+dck >= 0 && inC+dck <= this.columns) {
-							accumulator += input.get(inR+drk, inC+dck)*kernel.get(rk, ck);
+						int inR = rk-kernel.rows/2+inRCenter;
+						int inC = ck-kernel.columns/2 + inCCenter;
+						if(inR >= 0 && inR < this.rows && inC >= 0 && inC < this.columns) {
+							accumulator += input.get(inRCenter, inCCenter)*kernel.get(rk, ck);
 						}
 					}
 				}
@@ -68,16 +68,14 @@ public class Convolution2DNode extends Node {
 		// For each filter, sum the element-wise product with the input volume and assign it to the output.
 		for(int r=0; r < this.rows; r++) {
 			for(int c=0; c < this.columns; c++) {
-				int inR = padding+(r*stride);
-				int inC = padding+(c*stride);
 				// Center kernel at r,c
 				for(int rk = 0; rk < kernel.rows; rk++) {
 					for(int ck=0; ck < kernel.columns; ck++) {
-						int r2 = rk-kernel.rows/2;
-						int c2 = ck-kernel.columns/2;
-						if(inR+r2 >= 0 && inR+r2 < this.rows && inC+c2 >= 0 && inC+c2 <= this.columns) {
-							inputAdjoint.set(inR+r2, inC+c2, inputAdjoint.get(inR+r2, inC+c2) + adjoint.get(r,c)*kernel.get(rk, ck));
-							kernelAdjoint.set(rk, ck, kernelAdjoint.get(rk, ck)+adjoint.get(r,c)*input.get(inR+r2, inC+c2));
+						int outRow = rk-kernel.rows/2 + (r*rowStride);
+						int outColumn = ck-kernel.columns/2 + (c*columnStride);
+						if(outRow >= 0 && outRow < inputAdjoint.rows && outColumn >= 0 && outColumn < inputAdjoint.columns) {
+							inputAdjoint.set(outRow, outColumn, inputAdjoint.get(outRow, outColumn) + adjoint.get(r, c)*kernel.get(rk, ck));
+							kernelAdjoint.set(rk, ck, kernelAdjoint.get(rk, ck) + adjoint.get(r, c)*input.get(outRow, outColumn));
 						}
 					}
 				}
@@ -87,10 +85,10 @@ public class Convolution2DNode extends Node {
 	}
 
 	// Used to augment serialization.
-	public String extraDataToString() { return padding + "," + stride; };
+	public String extraDataToString() { return rowStride + "," + columnStride; };
 	public void extraDataFromString(String s) {
 		String[] tokens = s.split(",");
-		this.padding = Integer.parseInt(tokens[0]);
-		this.stride = Integer.parseInt(tokens[1]);
+		this.rowStride = Integer.parseInt(tokens[0]);
+		this.columnStride = Integer.parseInt(tokens[1]);
 	}
 }

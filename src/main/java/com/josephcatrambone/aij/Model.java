@@ -13,7 +13,7 @@ import java.util.Random;
  */
 public class Model extends Graph {
 	public enum Optimizer { SGD, MOMENTUM, ADAGRAD };
-	public enum Activation { NONE, TANH, SIGMOID, RELU };
+	public enum Activation { NONE, TANH, SIGMOID, RELU, SOFTMAX };
 	public enum Loss { ABS, SQUARED };
 
 	private Random random; // Used for weight init.
@@ -48,6 +48,10 @@ public class Model extends Graph {
 		w.setVariable(new Matrix(rows, columns, (i,j) -> scaling*(float)random.nextGaussian()));
 		trainableVariables.add(w);
 		return w;
+	}
+
+	public Node getOutputNode() {
+		return outputNode;
 	}
 
 	public void fit(float[] x, float[] y, float learningRate, Loss loss) {
@@ -110,6 +114,8 @@ public class Model extends Graph {
 				return new SigmoidNode(n);
 			case TANH:
 				return new TanhNode(n);
+			case SOFTMAX:
+				return new SoftmaxRowNode(n);
 		}
 		return null;
 	}
@@ -124,9 +130,9 @@ public class Model extends Graph {
 		addNode(outputNode);
 	}
 
-	public void addConvLayer(int kernelWidth, int kernelHeight, int padding, int stride, Activation act) {
+	public void addConvLayer(int kernelHeight, int kernelWidth, int yStride, int xStride, Activation act) {
 		VariableNode kernel = xavierWeight(kernelHeight, kernelWidth);
-		Node conv = new Convolution2DNode(outputNode, kernel, stride, padding);
+		Node conv = new Convolution2DNode(outputNode, kernel, yStride, xStride);
 		VariableNode bias = randomWeight(conv.rows, conv.columns);
 		Node prod = new AddNode(conv, bias);
 		outputNode = makeActivationNode(prod, act);
