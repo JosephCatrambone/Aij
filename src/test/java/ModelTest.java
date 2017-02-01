@@ -44,31 +44,30 @@ public class ModelTest {
 	}
 
 	@Test
-	public void testParity() {
+	public void testCountSoftmax() {
 		Model m = new Model(1, 3);
-		m.addDenseLayer(10, Model.Activation.TANH);
-		m.addDenseLayer(2, Model.Activation.SOFTMAX); // 0 = odd parity, 1 = even parity.
+		// Are there one, two, or three bits set?
+		m.addDenseLayer(5, Model.Activation.SOFTMAX);
+		m.addDenseLayer(3, Model.Activation.SOFTMAX);
 
 		float[][] x = new float[][] {
-			{0, 0, 0},
 			{0, 0, 1},
 			{0, 1, 0},
-			{0, 1, 1},
 			{1, 0, 0},
+			{0, 1, 1},
 			{1, 0, 1},
 			{1, 1, 0},
 			{1, 1, 1}
 		};
 
 		float[][] y = new float[][] {
-				{0, 1},
-				{1, 0},
-				{1, 0},
-				{0, 1},
-				{1, 0},
-				{0, 1},
-				{0, 1},
-				{1, 0}
+			{0, 0, 1},
+			{0, 0, 1},
+			{0, 0, 1},
+			{0, 1, 0},
+			{0, 1, 0},
+			{0, 1, 0},
+			{1, 0, 0}
 		};
 
 		for(int i=0; i < 1000; i++) {

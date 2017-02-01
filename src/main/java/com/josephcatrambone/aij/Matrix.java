@@ -128,6 +128,21 @@ public class Matrix implements Serializable {
 		}
 	}
 
+	public float[] getRow(int r) {
+		float[] rowData = new float[this.columns];
+		for(int j=0; j < this.columns; j++) {
+			rowData[j] = this.get(r, j);
+		}
+		return rowData;
+	}
+
+	public void setRow(int r, float[] data) {
+		assert(data.length == this.columns);
+		for(int j=0; j < this.columns; j++) {
+			this.set(r, j, data[j]);
+		}
+	}
+
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("[MATRIX]");

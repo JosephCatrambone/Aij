@@ -55,6 +55,7 @@ public class Model extends Graph {
 	}
 
 	public void fit(float[] x, float[] y, float learningRate, Loss loss) {
+		assert(x.length == this.inputNode.rows*this.inputNode.columns);
 		// If this is the first time we've run fit, we'll need to make our loss node.
 		if(targetNode == null || lossNode == null) {
 			// TODO: Sanity check if target node size changed.
