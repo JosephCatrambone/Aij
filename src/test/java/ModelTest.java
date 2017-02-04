@@ -19,14 +19,14 @@ public class ModelTest {
 		m.addDenseLayer(10, Model.Activation.TANH);
 		m.addDenseLayer(1, Model.Activation.SIGMOID);
 
-		float[][] x = new float[][] {
+		double[][] x = new double[][] {
 			{0, 0},
 			{0, 1},
 			{1, 0},
 			{1, 1}
 		};
 
-		float[][] y = new float[][] {
+		double[][] y = new double[][] {
 				{0},
 				{1},
 				{1},
@@ -50,7 +50,7 @@ public class ModelTest {
 		m.addDenseLayer(5, Model.Activation.SOFTMAX);
 		m.addDenseLayer(3, Model.Activation.SOFTMAX);
 
-		float[][] x = new float[][] {
+		double[][] x = new double[][] {
 			{0, 0, 1},
 			{0, 1, 0},
 			{1, 0, 0},
@@ -60,7 +60,7 @@ public class ModelTest {
 			{1, 1, 1}
 		};
 
-		float[][] y = new float[][] {
+		double[][] y = new double[][] {
 			{0, 0, 1},
 			{0, 0, 1},
 			{0, 0, 1},
@@ -72,8 +72,8 @@ public class ModelTest {
 
 		for(int i=0; i < 1000; i++) {
 			m.fit(x, y, 0.1f, Model.Loss.SQUARED);
-			float loss = 0;
-			float[][] predictions = m.predict(x);
+			double loss = 0;
+			double[][] predictions = m.predict(x);
 			for(int j=0; j < predictions.length; j++) {
 				loss += Math.abs(predictions[j][0] - y[j][0]);
 				loss += Math.abs(predictions[j][1] - y[j][1]);

@@ -11,7 +11,7 @@ public class SigmoidNode extends Node {
 	}
 
 	public Matrix forward(Matrix[] args) {
-		return args[0].elementOp(x -> 1.0f/(1.0f+(float)Math.exp(-x)));
+		return args[0].elementOp(x -> 1.0f/(1.0f+(double)Math.exp(-x)));
 	}
 
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
@@ -19,7 +19,7 @@ public class SigmoidNode extends Node {
 			adjoint.elementOp(forward[0], (adj, x) ->
 				// We use the long-form of the sigmoid derivative instead of sig(x)*(1.0f-sig(x)).
 				// Fewer multiplies.
-				(float)(adj*(Math.exp(-x)/(1.0f+Math.pow(1.0f + Math.exp(-x), 2.0f))))
+				(double)(adj*(Math.exp(-x)/(1.0f+Math.pow(1.0f + Math.exp(-x), 2.0f))))
 			)
 		};
 	}

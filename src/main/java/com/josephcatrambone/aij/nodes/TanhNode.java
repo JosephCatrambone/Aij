@@ -11,12 +11,12 @@ public class TanhNode extends Node {
 	}
 
 	public Matrix forward(Matrix[] args) {
-		return args[0].elementOp(a -> (float)Math.tanh(a));
+		return args[0].elementOp(a -> (double)Math.tanh(a));
 	}
 
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
 		return new Matrix[] {
-			adjoint.elementOp(forward[0], (adj, x) -> adj*(1.0f - (float)(Math.tanh(x)*Math.tanh(x))) )
+			adjoint.elementOp(forward[0], (adj, x) -> adj*(1.0f - (double)(Math.tanh(x)*Math.tanh(x))) )
 		};
 	}
 

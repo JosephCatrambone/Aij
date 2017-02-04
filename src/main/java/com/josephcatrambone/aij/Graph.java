@@ -46,7 +46,7 @@ public class Graph {
 		}
 	}
 
-	public float[] getOutput(HashMap<Node, float[]> inputs, Node node) {
+	public double[] getOutput(HashMap<Node, double[]> inputs, Node node) {
 		// getOutput is different slightly from forward in that we don't care about unused paths.
 		// For forward, we want to be sure _all_ different node values are populated in order.
 		// getOutput spends a cycle or two figuring out which paths it can ignore (so we don't pay for training paths).
@@ -82,7 +82,7 @@ public class Graph {
 		return results[node.id].data;
 
 		/* // If we didn't care about path pruning, we could just do this:
-		HashMap<Node, Matrix> remappedInputs = floatMapToMatrixMap(inputs);
+		HashMap<Node, Matrix> remappedInputs = doubleMapToMatrixMap(inputs);
 		return forward(remappedInputs)[node.id].data;
 		*/
 	}
@@ -107,12 +107,12 @@ public class Graph {
 	}
 
 	/*
-	public float[][] getGradient(HashMap<Integer, float[]> inputs, float[][] forward, int node) {
+	public double[][] getGradient(HashMap<Integer, double[]> inputs, double[][] forward, int node) {
 		if(forward == null) {
-			HashMap<Integer,Matrix> feed = floatMapToMatrixMap(inputs);
+			HashMap<Integer,Matrix> feed = doubleMapToMatrixMap(inputs);
 			Matrix[] fwd = forward(feed);
 			Matrix[] grad = getGradient(feed, fwd, node);
-			float[][] res = new float[nodes.size()][];
+			double[][] res = new double[nodes.size()][];
 			for(int i=0; i < grad.length; i++) {
 				res[i] = grad[i].data;
 			}

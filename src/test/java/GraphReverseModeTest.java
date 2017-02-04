@@ -29,17 +29,17 @@ public class GraphReverseModeTest {
 
 		// Try and approximate some linear function.
 		Random random = new Random();
-		float target_m = (float)random.nextGaussian()*100f;
-		float target_b = (float)random.nextGaussian()*100f;
-		m.setVariable(new Matrix(1, 1, new float[]{random.nextFloat()}));
+		double target_m = (double)random.nextGaussian()*100f;
+		double target_b = (double)random.nextGaussian()*100f;
+		m.setVariable(new Matrix(1, 1, new double[]{random.nextDouble()}));
 
 		// Do a few iterations.
-		final float LEARNING_RATE = 0.1f;
+		final double LEARNING_RATE = 0.1f;
 		HashMap<Node, Matrix> inputFeed = new HashMap<>();
 		for(int i=0; i < 1000; i++) {
-			float xData = random.nextFloat();
-			inputFeed.put(x, new Matrix(1, 1, new float[]{xData}));
-			inputFeed.put(y, new Matrix(1, 1, new float[]{xData*target_m + target_b}));
+			double xData = random.nextDouble();
+			inputFeed.put(x, new Matrix(1, 1, new double[]{xData}));
+			inputFeed.put(y, new Matrix(1, 1, new double[]{xData*target_m + target_b}));
 			// Minimize loss wrt error:
 			Matrix[] grad = g.getGradient(inputFeed, null, loss);
 			m.setVariable(m.getVariable().elementOp(d -> d-grad[m.id].data[0]*LEARNING_RATE));
@@ -51,8 +51,8 @@ public class GraphReverseModeTest {
 		System.out.println(" Got: y = " + m.getVariable().data[0] + " * x + " + b.getVariable().data[0]);
 
 		org.junit.Assert.assertArrayEquals(
-			new float[]{m.getVariable().data[0], b.getVariable().data[0]},
-			new float[]{target_m, target_b},
+			new double[]{m.getVariable().data[0], b.getVariable().data[0]},
+			new double[]{target_m, target_b},
 			0.01f
 		);
 	}
@@ -76,7 +76,7 @@ public class GraphReverseModeTest {
 	@Test
 	public void testConvolution() {
 		final int ITERATIONS = 1000;
-		final float LEARNING_RATE = 0.1f;
+		final double LEARNING_RATE = 0.1f;
 
 		Random random = new Random();
 
@@ -172,17 +172,17 @@ public class GraphReverseModeTest {
 
 		// Test XOR.
 		Random random = new Random();
-		weight_ih.setVariable(new Matrix(2, 3, (i,j) -> random.nextFloat()));
-		weight_ho.setVariable(new Matrix(3, 1, (i,j) -> random.nextFloat()));
+		weight_ih.setVariable(new Matrix(2, 3, (i,j) -> random.nextDouble()));
+		weight_ho.setVariable(new Matrix(3, 1, (i,j) -> random.nextDouble()));
 
 		// Do a few iterations.
-		final float LEARNING_RATE = 0.4f;
+		final double LEARNING_RATE = 0.4f;
 		HashMap<Node, Matrix> inputFeed = new HashMap<>();
 		for(int i=0; i < 10000; i++) {
-			float a = random.nextFloat();
-			float b = random.nextFloat();
-			inputFeed.put(x, new Matrix(1, 2, new float[]{a, b}));
-			inputFeed.put(y, new Matrix(1, 1, new float[]{(a > 0.5) ^ (b > 0.5) ? 1.0f : 0.0f}));
+			double a = random.nextDouble();
+			double b = random.nextDouble();
+			inputFeed.put(x, new Matrix(1, 2, new double[]{a, b}));
+			inputFeed.put(y, new Matrix(1, 1, new double[]{(a > 0.5) ^ (b > 0.5) ? 1.0f : 0.0f}));
 
 			// Minimize loss wrt error:
 			Matrix[] grad = g.getGradient(inputFeed, null, loss);
@@ -194,25 +194,25 @@ public class GraphReverseModeTest {
 			//System.out.println("Grad:" + grad[weight_ho.id]);
 		}
 
-		HashMap<Node, float[]> fd = new HashMap<>();
-		//fd.put(y, new float[]{0.0f});
-		fd.put(x, new float[]{0.0f, 0.0f});
-		float[] res = g.getOutput(fd, out);
+		HashMap<Node, double[]> fd = new HashMap<>();
+		//fd.put(y, new double[]{0.0f});
+		fd.put(x, new double[]{0.0f, 0.0f});
+		double[] res = g.getOutput(fd, out);
 		//org.junit.Assert.assertEquals(0.0f, res[0], 0.2f);
 		System.out.println(res[0]);
 		org.junit.Assert.assertTrue(res[0] < 0.5f);
 
-		fd.put(x, new float[]{0.0f, 1.0f});
+		fd.put(x, new double[]{0.0f, 1.0f});
 		res = g.getOutput(fd, out);
 		System.out.println(res[0]);
 		org.junit.Assert.assertTrue(res[0] > 0.5f);
 
-		fd.put(x, new float[]{1.0f, 0.0f});
+		fd.put(x, new double[]{1.0f, 0.0f});
 		res = g.getOutput(fd, out);
 		System.out.println(res[0]);
 		org.junit.Assert.assertTrue(res[0] > 0.5f);
 
-		fd.put(x, new float[]{1.0f, 1.0f});
+		fd.put(x, new double[]{1.0f, 1.0f});
 		res = g.getOutput(fd, out);
 		System.out.println(res[0]);
 		org.junit.Assert.assertTrue(res[0] < 0.5f);

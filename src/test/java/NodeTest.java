@@ -14,7 +14,7 @@ import java.util.Random;
  */
 public class NodeTest {
 
-	public void testGradient(Node n, float[] domain, float dx, float threshold) {
+	public void testGradient(Node n, double[] domain, double dx, double threshold) {
 		n.id = 0; // Hack in case we index by this.
 		// Do a forward pass on the node with a matrix of three rows.  
 		// In a verticle line we've got DX.
@@ -29,14 +29,14 @@ public class NodeTest {
 		Matrix fwd = n.forward(new Matrix[]{arg});
 
 		// f'(x) = f(x+dx) - f(x-dx) / (2*dx)
-		float[] numericalGradient = new float[domain.length];
+		double[] numericalGradient = new double[domain.length];
 		for(int i=0; i < domain.length; i++) {
 			numericalGradient[i] = (fwd.get(2,i) - fwd.get(0, i)) / (2.0f*dx);
 		}
 
 		// Calculate the exact gradient.
 		Matrix grad = n.reverse(new Matrix[]{arg}, Matrix.ones(fwd.rows, fwd.columns))[0];
-		float[] calculatedGradient = grad.getSlice(1, 2, 0, 10).data;
+		double[] calculatedGradient = grad.getSlice(1, 2, 0, 10).data;
 
 		// Dump output.
 		System.out.println("Numerical gradient: " + Arrays.toString(numericalGradient));
@@ -47,8 +47,8 @@ public class NodeTest {
 			if(calculatedGradient[i] == 0 && numericalGradient[i] == 0) {
 				continue; // If there's no grad, we're okay.
 			}
-			float p = calculatedGradient[i];
-			float q = numericalGradient[i];
+			double p = calculatedGradient[i];
+			double q = numericalGradient[i];
 			org.junit.Assert.assertTrue("Gradient order less than threshold?  " + p + " vs " + q, Math.abs(p-q)/Math.max(p,q) < threshold);
 		}
 
@@ -59,7 +59,7 @@ public class NodeTest {
 	@Test
 	public void testGrad() {
 		InputNode x = new InputNode(1, 10);
-		float[] values = new float[]{-10, -5, -2, -1, -0.1f, 0.1f, 1, 2, 5, 10};
+		double[] values = new double[]{-10, -5, -2, -1, -0.1f, 0.1f, 1, 2, 5, 10};
 
 		testGradient(new TanhNode(x), values, 0.01f, 0.5f);
 		testGradient(new SigmoidNode(x), values, 0.01f, 1.0f);

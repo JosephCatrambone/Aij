@@ -40,7 +40,7 @@ public class Convolution2DNode extends Node {
 
 				int inRCenter = r*rowStride;
 				int inCCenter = c*columnStride;
-				float accumulator = 0;
+				double accumulator = 0;
 				// Center kernel at r,c
 				for(int rk = 0; rk < kernel.rows; rk++) {
 					for(int ck=0; ck < kernel.columns; ck++) {

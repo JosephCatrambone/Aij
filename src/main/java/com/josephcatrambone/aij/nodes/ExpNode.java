@@ -10,7 +10,7 @@ public class ExpNode extends Node {
 	}
 
 	public Matrix forward(Matrix[] args) {
-		return args[0].elementOp(a -> (float)Math.exp(a));
+		return args[0].elementOp(a -> (double)Math.exp(a));
 	}
 
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {

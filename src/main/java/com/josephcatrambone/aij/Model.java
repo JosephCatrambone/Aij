@@ -36,7 +36,7 @@ public class Model extends Graph {
 
 	private VariableNode randomWeight(int rows, int columns) {
 		VariableNode w = new VariableNode(rows, columns);
-		w.setVariable(new Matrix(rows, columns, (i,j) -> (2.0f*random.nextFloat())-1.0f));
+		w.setVariable(new Matrix(rows, columns, (i,j) -> (2.0f*random.nextDouble())-1.0f));
 		trainableVariables.add(w);
 		return w;
 	}
@@ -44,8 +44,8 @@ public class Model extends Graph {
 	private VariableNode xavierWeight(int rows, int columns) {
 		VariableNode w = new VariableNode(rows, columns);
 		// Xavier says 2 + (n_in + n_out).
-		float scaling = 2.0f / (float)rows; // Based on a recent paper by He, Rang, Zhen, and Sun.
-		w.setVariable(new Matrix(rows, columns, (i,j) -> scaling*(float)random.nextGaussian()));
+		double scaling = 2.0f / (double)rows; // Based on a recent paper by He, Rang, Zhen, and Sun.
+		w.setVariable(new Matrix(rows, columns, (i,j) -> scaling*(double)random.nextGaussian()));
 		trainableVariables.add(w);
 		return w;
 	}
@@ -54,7 +54,7 @@ public class Model extends Graph {
 		return outputNode;
 	}
 
-	public void fit(float[] x, float[] y, float learningRate, Loss loss) {
+	public void fit(double[] x, double[] y, double learningRate, Loss loss) {
 		assert(x.length == this.inputNode.rows*this.inputNode.columns);
 		// If this is the first time we've run fit, we'll need to make our loss node.
 		if(targetNode == null || lossNode == null) {
@@ -85,20 +85,20 @@ public class Model extends Graph {
 		}
 	}
 
-	public void fit(float[][] x, float [][] y, float learningRate, Loss loss) {
+	public void fit(double[][] x, double [][] y, double learningRate, Loss loss) {
 		for(int i=0; i < x.length; i++) {
 			fit(x[i], y[i], learningRate, loss);
 		}
 	}
 
-	public float[] predict(float[] x) {
-		HashMap<Node, float[]> inputMap = new HashMap<>();
+	public double[] predict(double[] x) {
+		HashMap<Node, double[]> inputMap = new HashMap<>();
 		inputMap.put(inputNode, x);
 		return getOutput(inputMap, outputNode);
 	}
 
-	public float[][] predict(float[][] x) {
-		float[][] result = new float[x.length][outputNode.rows*outputNode.columns];
+	public double[][] predict(double[][] x) {
+		double[][] result = new double[x.length][outputNode.rows*outputNode.columns];
 		for(int i=0; i < x.length; i++) {
 			result[i] = predict(x[i]);
 		}

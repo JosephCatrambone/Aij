@@ -15,7 +15,7 @@ public class RowSumNode extends Node {
 	public Matrix forward(Matrix[] args) {
 		Matrix m = new Matrix(this.rows, this.columns);
 		for(int r = 0; r < this.rows; r++) {
-			float accumulator = 0;
+			double accumulator = 0;
 			for(int c = 0; c < args[0].columns; c++) {
 				accumulator += args[0].get(r, c);
 			}

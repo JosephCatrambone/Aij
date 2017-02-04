@@ -14,18 +14,18 @@ public class SoftmaxRowNode extends Node {
 		Matrix m = new Matrix(this.rows, this.columns);
 		for(int r = 0; r < this.rows; r++) {
 			// Do this max thing to improve the numerical stability.
-			float max = 0;
+			double max = 0;
 			for(int c=0; c < args[0].columns; c++) {
 				max = Math.max(max, args[0].get(r,c));
 			}
 
 			// And softmax as normal.
-			float accumulator = 0;
+			double accumulator = 0;
 			for(int c = 0; c < args[0].columns; c++) {
 				accumulator += Math.exp(args[0].get(r, c)-max);
 			}
 			for(int c = 0; c < args[0].columns; c++) {
-				m.set(r, c, (float)Math.exp(args[0].get(r, c)-max)/accumulator);
+				m.set(r, c, (double)Math.exp(args[0].get(r, c)-max)/accumulator);
 			}
 		}
 		return m;

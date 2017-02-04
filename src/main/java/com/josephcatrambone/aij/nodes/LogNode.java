@@ -13,7 +13,7 @@ class LogNode extends Node {
 	// z := elem(x, op)
 	// x_adj += z_adj (dot) elem(x, delta op)
 	public Matrix forward(Matrix[] args) {
-		return args[0].elementOp((a) -> (float)Math.log(a));
+		return args[0].elementOp((a) -> (double)Math.log(a));
 	}
 
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
