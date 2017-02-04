@@ -6,6 +6,7 @@ import java.util.StringJoiner;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
+import java.util.stream.IntStream;
 
 /**
  * Created by josephcatrambone on 1/13/17.
@@ -45,11 +46,11 @@ public class Matrix implements Serializable {
 		this.rows = rows;
 		this.columns = columns;
 		this.data = new double[rows*columns];
-		for(int r=0; r < rows; r++) {
-			for(int c=0; c < columns; c++) {
-				data[c+r*columns] = initFunction.apply(r, c);
-			}
-		}
+		Arrays.parallelSetAll(data, (int i) -> {
+			int c = i%columns;
+			int r = i/columns;
+			return initFunction.apply(r, c);
+		});
 	}
 
 	public double get(int r, int c) {
@@ -61,22 +62,20 @@ public class Matrix implements Serializable {
 	}
 
 	public void elementOp_i(UnaryOperator<Double> op) {
-		
-		for(int i=0; i < data.length; i++) {
-			data[i] = op.apply(data[i]);
-		}
+		data = Arrays.stream(data).parallel().map(x -> op.apply(x)).toArray();
 	}
 
 	public Matrix elementOp(UnaryOperator<Double> op) {
-		Matrix m = new Matrix(this.rows, this.columns, Arrays.copyOf(this.data, rows*columns));
-		m.elementOp_i(op);
-		return m;
+		return new Matrix(this.rows, this.columns,
+			Arrays.stream(this.data).parallel().map(x -> op.apply(x)).toArray()
+		);
 	}
 
 	public void elementOp_i(Matrix other, BinaryOperator<Double> op) {
-		for(int i=0; i < data.length; i++) {
-			data[i] = op.apply(data[i], other.data[i]);
-		}
+		this.data = IntStream.range(0, data.length).parallel().mapToDouble(
+			i -> op.apply(data[i], other.data[i])
+		).toArray();
+
 	}
 
 	public Matrix elementOp(Matrix other, BinaryOperator<Double> op) {
@@ -87,7 +86,8 @@ public class Matrix implements Serializable {
 
 	public Matrix matmul(Matrix other) {
 		Matrix result = new Matrix(this.rows, other.columns);
-		for(int i=0; i < rows; i++) {
+		//for(int i=0; i < rows; i++) {
+		IntStream.range(0, rows).parallel().forEach( i -> {
 			for(int j=0; j < other.columns; j++) {
 				double accumulator = 0;
 				for(int k=0; k < this.columns; k++) {
@@ -96,7 +96,7 @@ public class Matrix implements Serializable {
 				}
 				result.set(i,j, accumulator);
 			}
-		}
+		});
 		return result;
 	}
 
@@ -130,18 +130,12 @@ public class Matrix implements Serializable {
 	}
 
 	public double[] getRow(int r) {
-		double[] rowData = new double[this.columns];
-		for(int j=0; j < this.columns; j++) {
-			rowData[j] = this.get(r, j);
-		}
-		return rowData;
+		return Arrays.copyOfRange(this.data, r*this.columns, (r+1)*this.columns);
 	}
 
 	public void setRow(int r, double[] data) {
 		assert(data.length == this.columns);
-		for(int j=0; j < this.columns; j++) {
-			this.set(r, j, data[j]);
-		}
+		System.arraycopy(data, 0, this.data, r*this.columns, data.length);
 	}
 
 	public String toString() {

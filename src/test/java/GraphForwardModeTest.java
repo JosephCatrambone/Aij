@@ -53,5 +53,22 @@ public class GraphForwardModeTest {
 
 		org.junit.Assert.assertArrayEquals(new double[]{1, 1, 1, 1, 1, 1, 1, 1, 1}, g.getOutput(inputFeed, out), TOLERANCE);
 	}
+
+	@Test
+	public void testBigMatMul() {
+		Graph g = new Graph();
+		Node x = g.addNode(new InputNode(1000, 1000));
+		Node a = g.addNode(new InputNode(1000, 1000));
+		Node out = g.addNode(new MatrixMultiplyNode(x, a));
+
+		HashMap<Node, double[]> inputFeed = new HashMap<>();
+		inputFeed.put(a, new double[1000*1000]);
+		inputFeed.put(x, new double[1000*1000]);
+
+		long start = System.currentTimeMillis();
+		g.getOutput(inputFeed, out);
+		long end = System.currentTimeMillis();
+		System.out.println("Duration for 1000x1000 multiply: " + (end-start));
+	}
 }
 
