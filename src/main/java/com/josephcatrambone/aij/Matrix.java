@@ -62,7 +62,7 @@ public class Matrix implements Serializable {
 	}
 
 	public void elementOp_i(UnaryOperator<Double> op) {
-		data = Arrays.stream(data).parallel().map(x -> op.apply(x)).toArray();
+		IntStream.range(0, this.data.length).parallel().forEach(i -> this.data[i] = op.apply(this.data[i]));
 	}
 
 	public Matrix elementOp(UnaryOperator<Double> op) {
@@ -79,9 +79,9 @@ public class Matrix implements Serializable {
 	}
 
 	public Matrix elementOp(Matrix other, BinaryOperator<Double> op) {
-		Matrix m = new Matrix(this.rows, this.columns, Arrays.copyOf(this.data, rows*columns));
-		m.elementOp_i(other, op);
-		return m;
+		return new Matrix(this.rows, this.columns, IntStream.range(0, data.length).parallel().mapToDouble(
+			i -> op.apply(this.data[i], other.data[i])
+		).toArray());
 	}
 
 	public Matrix matmul(Matrix other) {

@@ -11,7 +11,7 @@ public class ReLUNode extends Node {
 	}
 
 	public Matrix forward(Matrix[] args) {
-		return args[0].elementOp(a -> (double)Math.max(0, a));
+		return args[0].elementOp(a -> (double)Math.max(0.001*a, a));
 	}
 
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
