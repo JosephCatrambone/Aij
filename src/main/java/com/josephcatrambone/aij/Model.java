@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 /**
  * Created by josephcatrambone on 1/17/17.
@@ -76,12 +77,11 @@ public class Model extends Graph {
 		return outputNode;
 	}
 
-	public void fit(double[] x, double[] y, double learningRate, Loss loss) {
-		assert(x.length == this.inputNode.rows*this.inputNode.columns);
+	private void finalizeNetwork(Loss loss) {
 		// If this is the first time we've run fit, we'll need to make our loss node.
 		if(targetNode == null || lossNode == null) {
 			// TODO: Sanity check if target node size changed.
-			targetNode = new InputNode(1, y.length);
+			targetNode = new InputNode(1, outputNode.columns);
 			Node diff = new SubtractNode(outputNode, targetNode);
 			switch(loss) {
 				case ABS:
@@ -99,6 +99,11 @@ public class Model extends Graph {
 			targetNode.name = "target";
 			lossNode.name = "loss";
 		}
+	}
+
+	public void fit(double[] x, double[] y, double learningRate, Loss loss) {
+		assert(x.length == this.inputNode.rows*this.inputNode.columns);
+		finalizeNetwork(loss);
 
 		// Calculate the difference and apply the gradient.
 		HashMap<Node, Matrix> inputFeed = new HashMap<>();
@@ -126,7 +131,28 @@ public class Model extends Graph {
 	 * @param loss
 	 */
 	public void fitBatch(double[][] x, double[][] y, double learningRate, Loss loss) {
+		finalizeNetwork(loss);
 
+		// This will accumulate our gradients below.
+		Matrix[][] grads = new Matrix[x.length][nodes.size()];
+
+		// Calculate all the gradients in parallel.
+		IntStream.range(0, x.length).parallel().forEach(i -> {
+			HashMap<Node, Matrix> inputFeed = new HashMap<>();
+			inputFeed.put(inputNode, new Matrix(inputNode.rows, inputNode.columns, x[i]));
+			inputFeed.put(targetNode, new Matrix(targetNode.rows, targetNode.columns, y[i]));
+			grads[i] = getGradient(inputFeed, null, lossNode);
+		});
+
+		// Apply the gradients, scaled, to each of the learning variables.
+		// Dividing by x.length will average our gradients.
+		for(VariableNode n : trainableVariables) {
+			Matrix accumulator = grads[0][n.id];
+			for(int j=1; j < x.length; j++) {
+				accumulator.elementOp_i(grads[j][n.id], (a,b) -> a+b);
+			}
+			n.getVariable().elementOp_i(accumulator, (w, dw) -> w - learningRate*dw/((float)x.length));
+		}
 	}
 
 	public double[] predict(double[] x) {

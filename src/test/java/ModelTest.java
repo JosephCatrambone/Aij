@@ -29,7 +29,16 @@ public class ModelTest {
 	}
 
 	@Test
-	public void testXOR() {
+	public void testXORSerial() {
+		testXOR(false);
+	}
+
+	@Test
+	public void testXORParallel() {
+		testXOR(true);
+	}
+
+	public void testXOR(boolean parallel) {
 		Model m = new Model(1, 2);
 		m.addDenseLayer(10, Model.Activation.TANH);
 		m.addDenseLayer(1, Model.Activation.SIGMOID);
@@ -49,7 +58,11 @@ public class ModelTest {
 		};
 
 		for(int i=0; i < 5000; i++) {
-			m.fit(x, y, 0.5f, Model.Loss.SQUARED);
+			if(parallel) {
+				m.fitBatch(x, y, 0.5, Model.Loss.SQUARED);
+			} else {
+				m.fit(x, y, 0.5f, Model.Loss.SQUARED);
+			}
 			System.out.print(m.predict(x[0])[0] + "\t\t");
 			System.out.print(m.predict(x[1])[0] + "\t\t");
 			System.out.print(m.predict(x[2])[0] + "\t\t");
