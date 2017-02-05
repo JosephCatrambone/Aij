@@ -1,6 +1,12 @@
 # Aij
 A small, simple Java AI library with no external requirements.
 
+## What's New
+
+v1.1: Lots of speed improvements!  Parallel matrix operations!  Breaking changes include moving to Double from Float for better Java 8 parallel/stream support.
+
+v1.0: New high-level model interface.  Graph serialization.  LOTS of new node types like ReLU, Softmax, HStack, and Broadcast.
+
 ## Samples:
 
 ### Training XOR with the High-Level Wrapper:
@@ -10,14 +16,14 @@ Model m = new Model(1, 2);
 m.addDenseLayer(10, Model.Activation.TANH);
 m.addDenseLayer(1, Model.Activation.SIGMOID);
 
-float[][] x = new float[][] {
+double[][] x = new double[][] {
     {0, 0},
     {0, 1},
     {1, 0},
     {1, 1}
 };
 
-float[][] y = new float[][] { {0}, {1}, {1}, {0} };
+double[][] y = new double[][] { {0}, {1}, {1}, {0} };
 
 for(int i=0; i < 10000; i++) {
     m.fit(x, y, 0.5f, Model.Loss.SQUARED);
@@ -47,17 +53,17 @@ g.addNode(loss);
 
 // Try and approximate some linear function.
 Random random = new Random();
-float target_m = (float)random.nextGaussian()*100f;
-float target_b = (float)random.nextGaussian()*100f;
+double target_m = (float)random.nextGaussian()*100f;
+double target_b = (float)random.nextGaussian()*100f;
 m.setVariable(new Matrix(1, 1, new float[]{random.nextFloat()}));
 
 // Do a few iterations.
 final float LEARNING_RATE = 0.1f;
 HashMap<Node, Matrix> inputFeed = new HashMap<>();
 for(int i=0; i < 1000; i++) {
-    float xData = random.nextFloat();
-    inputFeed.put(x, new Matrix(1, 1, new float[]{xData}));
-    inputFeed.put(y, new Matrix(1, 1, new float[]{xData*target_m + target_b}));
+    double xData = random.nextDouble();
+    inputFeed.put(x, new Matrix(1, 1, new double[]{xData}));
+    inputFeed.put(y, new Matrix(1, 1, new double[]{xData*target_m + target_b}));
     // Minimize loss wrt error:
     Matrix[] grad = g.getGradient(inputFeed, null, loss);
     m.setVariable(m.getVariable().elementOp(d -> d-grad[m.id].data[0]*LEARNING_RATE));

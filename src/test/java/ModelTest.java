@@ -14,6 +14,21 @@ import java.util.Random;
 public class ModelTest {
 
 	@Test
+	public void saveRestoreTest() {
+		Model m = new Model(20, 20);
+		m.addConvLayer(2, 2, 1, 1, Model.Activation.NONE);
+		m.addConvLayer(2, 2, 1, 1, Model.Activation.NONE);
+		m.addFlattenLayer();
+		m.addDenseLayer(10, Model.Activation.NONE);
+		m.addDenseLayer(11, Model.Activation.TANH);
+		m.addDenseLayer(12, Model.Activation.RELU);
+
+		String model = m.serializeToString();
+		Model m2 = new Model(20, 20);
+		m2.restoreFromString(model);
+	}
+
+	@Test
 	public void testXOR() {
 		Model m = new Model(1, 2);
 		m.addDenseLayer(10, Model.Activation.TANH);

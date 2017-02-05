@@ -37,6 +37,7 @@ public class Model extends Graph {
 	private VariableNode randomWeight(int rows, int columns) {
 		VariableNode w = new VariableNode(rows, columns);
 		w.setVariable(new Matrix(rows, columns, (i,j) -> (2.0f*random.nextDouble())-1.0f));
+		w.name = "variable";
 		trainableVariables.add(w);
 		return w;
 	}
@@ -46,8 +47,29 @@ public class Model extends Graph {
 		// Xavier says 2 + (n_in + n_out).
 		double scaling = 2.0f / (double)rows; // Based on a recent paper by He, Rang, Zhen, and Sun.
 		w.setVariable(new Matrix(rows, columns, (i,j) -> scaling*(double)random.nextGaussian()));
+		w.name = "variable";
 		trainableVariables.add(w);
 		return w;
+	}
+
+	@Override
+	public void restoreFromString(String s) {
+		super.restoreFromString(s);
+		// We populate the names with some special tags when we start training.
+		// Then we restore and use the names to put back the values.
+		for(Node n : this.nodes) {
+			if(n.name.startsWith("variable")) {
+				this.trainableVariables.add((VariableNode)n);
+			} else if(n.name.startsWith("input")) {
+				this.inputNode = n;
+			} else if(n.name.startsWith("output")) {
+				this.outputNode = n;
+			} else if(n.name.startsWith("loss")) {
+				this.lossNode = n;
+			} else if(n.name.startsWith("target")) {
+				this.targetNode = n;
+			}
+		}
 	}
 
 	public Node getOutputNode() {
@@ -71,6 +93,11 @@ public class Model extends Graph {
 			}
 			lossNode = new RowSumNode(lossNode); // Roll up into a single value.
 			addNode(lossNode);
+			// Need these for save/restore.
+			inputNode.name = "input";
+			outputNode.name = "output";
+			targetNode.name = "target";
+			lossNode.name = "loss";
 		}
 
 		// Calculate the difference and apply the gradient.
@@ -89,6 +116,17 @@ public class Model extends Graph {
 		for(int i=0; i < x.length; i++) {
 			fit(x[i], y[i], learningRate, loss);
 		}
+	}
+
+	/***
+	 * fitBatch, unlike fit, calculates the gradient for all examples before applying it to the model's variables.
+	 * @param x
+	 * @param y
+	 * @param learningRate
+	 * @param loss
+	 */
+	public void fitBatch(double[][] x, double[][] y, double learningRate, Loss loss) {
+
 	}
 
 	public double[] predict(double[] x) {

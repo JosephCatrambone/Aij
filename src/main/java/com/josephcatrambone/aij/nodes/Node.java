@@ -79,6 +79,8 @@ public abstract class Node {
 			for (int i = 0; i < inputIDs.length; i++) {
 				instance.inputs[i] = possibleInputs.get(Integer.parseInt(inputIDs[i]));
 			}
+		} else {
+			instance.inputs = new Node[]{};
 		}
 
 		// If this node has extra data...
