@@ -14,6 +14,13 @@ public class VariableNode extends Node {
 		this.inputs = new Node[]{};
 	}
 
+	public VariableNode(Matrix m) {
+		variable = m;
+		this.rows = m.rows;
+		this.columns = m.columns;
+		this.inputs = new Node[]{};
+	}
+
 	public Matrix forward(Matrix[] args) {
 		return variable;
 	}
