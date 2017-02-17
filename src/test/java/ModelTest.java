@@ -2,6 +2,7 @@ import com.josephcatrambone.aij.Model;
 import org.junit.Test;
 
 import java.io.*;
+import java.util.Random;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -108,9 +109,12 @@ public class ModelTest {
 
 	@Test
 	public void testMNIST() throws IOException {
+		final int ITERATION_COUNT = 1000000;
+		final int BATCH_SIZE = 10;
+		final int REPORT_INTERVAL = 1000;
 		Model model;
-		float[][] images;
-		float[][] labels; // One-hot.
+		double[][] images;
+		double[][] labels; // One-hot.
 
 		DataInputStream image_in = new DataInputStream(new GZIPInputStream(new FileInputStream("train-images-idx3-ubyte.gz")));
 		DataInputStream labels_in = new DataInputStream(new GZIPInputStream(new FileInputStream("train-labels-idx1-ubyte.gz")));
@@ -122,15 +126,105 @@ public class ModelTest {
 		int rows = image_in.readInt();
 		int columns = image_in.readInt();
 		// Images are row-wise, which is great because so is our model.
-		images = new float[imageCount][rows*columns];
+		images = new double[imageCount][rows*columns];
 		for(int imageNumber=0; imageNumber < imageCount; imageNumber++) {
-			for(int c=0; c < columns; c++) {
-				for(int r=0; r < rows; r++) {
+			for(int r=0; r < rows; r++) {
+				for(int c=0; c < columns; c++) {
 					images[imageNumber][c + r*columns] = image_in.readUnsignedByte()/255.0f;
 				}
 			}
 		}
 
-		model = new Model(imageCount, rows*columns);
+		// Read the labels.
+		magicNumber = labels_in.readInt();
+		assert(magicNumber == 0x00000801);
+		int labelCount = labels_in.readInt();
+		labels = new double[labelCount][10];
+		for(int labelNumber=0; labelNumber < labelCount; labelNumber++) {
+			int label = labels_in.readUnsignedByte();
+			labels[labelNumber][label] = 1.0f;
+		}
+
+		// Verify we've got all the data and labels.
+		assert(labelCount == imageCount);
+
+		// Build and train our model.
+		model = new Model(rows, columns);
+		//model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
+		//model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
+		//model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
+		model.addFlattenLayer();
+		model.addDenseLayer(64, Model.Activation.TANH);
+		model.addDenseLayer(128, Model.Activation.TANH);
+		model.addDenseLayer(10, Model.Activation.SOFTMAX);
+
+		// Split up the training data into target and test.
+		// Start by shuffling the data.
+		Random random = new Random();
+		for(int i=0; i < imageCount; i++) {
+			// Randomly assign another index to this value.
+			int swapTarget = random.nextInt(imageCount);
+			double[] tempImage = images[i];
+			images[i] = images[swapTarget];
+			images[swapTarget] = tempImage;
+
+			double[] tempLabel = labels[i];
+			labels[i] = labels[swapTarget];
+			labels[swapTarget] = tempLabel;
+		}
+
+		// Pick a cutoff.  80% training?
+		float learningRate = 0.1f;
+		int trainingCutoff = (int)(imageCount*0.8f);
+		for(int i=0; i < ITERATION_COUNT; i++) {
+			double[][] batch = new double[BATCH_SIZE][images[0].length];
+			double[][] target = new double[BATCH_SIZE][labels[0].length];
+			// Pick N items at random.
+			for(int j=0; j < BATCH_SIZE; j++) {
+				int ex = random.nextInt(trainingCutoff);
+				batch[j] = images[ex];
+				target[j] = labels[ex];
+			}
+			// Train the model for an iteration.
+			model.fitBatch(batch, target, learningRate, Model.Loss.SQUARED);
+			// Check if we should report:
+			if(i % REPORT_INTERVAL == 0) {
+				learningRate *= 0.999;
+				// Select an example from the test set.
+				int ex = trainingCutoff+random.nextInt(imageCount-trainingCutoff);
+				double[] guess = model.predict(images[ex]);
+				// Display the image on the left and the guesses on the right.
+				for(int r=0; r < rows; r++) {
+					// Show the image.
+					for(int c=0; c < columns; c++) {
+						if(images[ex][c+r*columns] > 0.5f) {
+							System.out.print("#");
+						} else {
+							System.out.print(".");
+						}
+					}
+
+					// For each of our guesses, display some pretty graphs.
+					if(r < 10) {
+						if(labels[ex][r] > 0) {
+							System.out.print(" [CORRECT]");
+						} else {
+							System.out.print(" [_______]");
+						}
+						System.out.print(" " + r + ": ");
+						for(int m=0; m < guess[r]*10; m++) {
+							System.out.print("#");
+						}
+					} else if(r == 10) {
+						System.out.print(" ITERATION: " + i + "   LEARNING RATE: " + learningRate);
+					}
+					System.out.println();
+				}
+				System.out.println();
+			}
+		}
+
+		// Save the model to a file.
+		model.serializeToString();
 	}
 }
