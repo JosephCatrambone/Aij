@@ -150,9 +150,9 @@ public class ModelTest {
 
 		// Build and train our model.
 		model = new Model(rows, columns);
-		//model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
-		//model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
-		//model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
+		model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
+		model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
+		model.addConvLayer(3, 3, 2, 2, Model.Activation.TANH);
 		model.addFlattenLayer();
 		model.addDenseLayer(64, Model.Activation.TANH);
 		model.addDenseLayer(128, Model.Activation.TANH);

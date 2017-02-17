@@ -78,4 +78,33 @@ public class NodeTest {
 		testGradient(new AbsNode(x), values, 0.01f, 0.2f);
 	}
 
+	@Test
+	public void testConvolution() {
+		Node x = new InputNode(5, 5);
+		VariableNode kernel = new VariableNode(3, 3);
+		kernel.setVariable(new Matrix(3, 3, new double[]{
+			1.0, 1.0, 1.0,
+			1.0, 1.0, 1.0,
+			1.0, 1.0, 1.0
+		}));
+		Node c = new Convolution2DNode(x, kernel, 2, 2);
+		Graph g = new Graph();
+		g.addNode(c);
+
+		double[] m = new double[]{
+			1, 2, 3, 4, 5,
+			6, 7, 8, 9, 0,
+			1, 2, 3, 4, 5,
+			6, 7, 8, 9, 0,
+			1, 2, 3, 4, 5
+		};
+		HashMap<Node, double[]> inputFeed = new HashMap<>();
+		inputFeed.put(x, m);
+		double[] res = g.getOutput(inputFeed, c);
+		assert(res[0] == 1+2+6+7);
+		assert(res[1] == 2+3+4+7+8+9);
+		assert(res[2] == 6+7+1+2+6+7);
+		assert(res[3] == 7+8+9+2+3+4+7+8+9);
+	}
+
 }

@@ -37,7 +37,7 @@ public class Convolution2DNode extends Node {
 		// For each filter, sum the element-wise product with the input volume and assign it to the output.
 		for(int r=0; r < this.rows; r++) {
 			for(int c=0; c < this.columns; c++) {
-
+				// Should add padding.
 				int inRCenter = r*rowStride;
 				int inCCenter = c*columnStride;
 				double accumulator = 0;
@@ -47,8 +47,8 @@ public class Convolution2DNode extends Node {
 						// Delta position
 						int inR = rk-kernel.rows/2+inRCenter;
 						int inC = ck-kernel.columns/2 + inCCenter;
-						if(inR >= 0 && inR < this.rows && inC >= 0 && inC < this.columns) {
-							accumulator += input.get(inRCenter, inCCenter)*kernel.get(rk, ck);
+						if(inR >= 0 && inR < input.rows && inC >= 0 && inC < input.columns) {
+							accumulator += input.get(inR, inC)*kernel.get(rk, ck);
 						}
 					}
 				}
