@@ -2,7 +2,7 @@ package com.josephcatrambone.aij.nodes;
 
 import com.josephcatrambone.aij.Matrix;
 
-class LogNode extends Node {
+public class LogNode extends Node {
 
 	public LogNode() { super(); }
 
@@ -18,7 +18,7 @@ class LogNode extends Node {
 
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
 		// elem x and delta op.
-		return new Matrix[]{adjoint.elementOp(forward[0].elementOp(a -> 1.0f/a), (a, b) -> a*b)};
+		return new Matrix[]{adjoint.elementOp(forward[0], (a, b) -> a/b)};
 	}
 
 	// Used to augment serialization.

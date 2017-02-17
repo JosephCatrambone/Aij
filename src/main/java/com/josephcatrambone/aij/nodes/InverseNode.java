@@ -2,19 +2,19 @@ package com.josephcatrambone.aij.nodes;
 
 import com.josephcatrambone.aij.Matrix;
 
-public class ExpNode extends Node {
-	public ExpNode() { super(); }
+public class InverseNode extends Node {
+	public InverseNode() { super(); }
 
-	public ExpNode(Node input) {
-		super(input);
+	public InverseNode(Node inputNode) {
+		super(inputNode);
 	}
 
 	public Matrix forward(Matrix[] args) {
-		return args[0].elementOp(a -> Math.exp(a));
+		return args[0].elementOp(v -> 1.0f/v);
 	}
 
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
-		return new Matrix[]{ adjoint.elementOp(forward[0], (a,b) -> a*Math.exp(b)) };
+		return new Matrix[]{adjoint.elementOp(forward[0], (a, b) -> a*-1.0f/(b*b))};
 	}
 
 	// Used to augment serialization.

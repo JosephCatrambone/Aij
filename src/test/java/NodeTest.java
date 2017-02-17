@@ -39,8 +39,9 @@ public class NodeTest {
 		double[] calculatedGradient = grad.getSlice(1, 2, 0, 10).data;
 
 		// Dump output.
-		System.out.println("Numerical gradient: " + Arrays.toString(numericalGradient));
-		System.out.println("Calculated gradient: " + Arrays.toString(calculatedGradient));
+		System.out.println(n.getClass().getName() +" gradient:");
+		System.out.println(" - Numerical gradient: " + Arrays.toString(numericalGradient));
+		System.out.println(" - Calculated gradient: " + Arrays.toString(calculatedGradient));
 
 		// Gradient error magnitude.
 		for(int i=0; i < domain.length; i++) {
@@ -61,10 +62,20 @@ public class NodeTest {
 		InputNode x = new InputNode(1, 10);
 		double[] values = new double[]{-10, -5, -2, -1, -0.1f, 0.1f, 1, 2, 5, 10};
 
-		testGradient(new TanhNode(x), values, 0.01f, 0.5f);
-		testGradient(new SigmoidNode(x), values, 0.01f, 1.0f);
+		testGradient(new TanhNode(x), values, 0.01f, 0.1f);
+		testGradient(new SigmoidNode(x), values, 0.01f, 0.5f);
 		testGradient(new ReLUNode(x), values, 0.01f, 0.2f);
+		testGradient(new InverseNode(x), values, 0.01f, 0.2f);
+		testGradient(new ExpNode(x), values, 0.01f, 0.2f);
+		testGradient(new PowerNode(x, 2), values, 0.01f, 0.2f);
 
+		// These require non-negative values.
+		values = new double[]{0.1f, 1, 2, 5, 10, 100, 1000, 10000, 1000000, 1000000000};
+		testGradient(new LogNode(x), values, 0.01f, 0.2f);
+
+		// Has a discontinuity at zero.
+		values = new double[]{-10, -5, -2, -1, -0.5f, 0.5f, 1, 2, 5, 10};
+		testGradient(new AbsNode(x), values, 0.01f, 0.2f);
 	}
 
 }

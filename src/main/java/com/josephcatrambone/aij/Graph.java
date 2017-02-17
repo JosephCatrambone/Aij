@@ -93,6 +93,9 @@ public class Graph {
 			// Special case: inputs read from the input map.
 			if(nodes.get(i) instanceof InputNode) {
 				results[i] = datafeed.get(nodes.get(i));
+				if(results[i] == null || results[i].data == null) {
+					System.err.println("Compute graph variable undefined on forward pass: Name '" + nodes.get(i).name + "'");
+				}
 			} else {
 				// Compile an array of values to be passed into the node.
 				Node n = nodes.get(i);

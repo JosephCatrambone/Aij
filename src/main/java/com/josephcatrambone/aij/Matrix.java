@@ -46,11 +46,18 @@ public class Matrix implements Serializable {
 		this.rows = rows;
 		this.columns = columns;
 		this.data = new double[rows*columns];
+		/*
 		Arrays.parallelSetAll(data, (int i) -> {
 			int c = i%columns;
 			int r = i/columns;
 			return initFunction.apply(r, c);
 		});
+		*/
+		for(int r=0; r < this.rows; r++) {
+			for(int c=0; c < this.columns; c++) {
+				this.set(r, c, initFunction.apply(r, c));
+			}
+		}
 	}
 
 	public double get(int r, int c) {
@@ -62,41 +69,60 @@ public class Matrix implements Serializable {
 	}
 
 	public void elementOp_i(UnaryOperator<Double> op) {
-		IntStream.range(0, this.data.length).parallel().forEach(i -> this.data[i] = op.apply(this.data[i]));
+		// Parallel version.
+		//IntStream.range(0, this.data.length).parallel().forEach(i -> this.data[i] = op.apply(this.data[i]));
+		// Serial version.
+		for(int i=0; i < this.data.length; i++) { this.data[i] = op.apply(this.data[i]); }
 	}
 
 	public Matrix elementOp(UnaryOperator<Double> op) {
+		// Parallel version:
+		/*
 		return new Matrix(this.rows, this.columns,
 			Arrays.stream(this.data).parallel().map(x -> op.apply(x)).toArray()
 		);
+		*/
+		// Serial is faster than parallel?
+		return new Matrix(this.rows, this.columns, (r,c) -> op.apply(get(r,c)));
 	}
 
 	public void elementOp_i(Matrix other, BinaryOperator<Double> op) {
+		// Parallel version:
+		/*
 		this.data = IntStream.range(0, data.length).parallel().mapToDouble(
 			i -> op.apply(data[i], other.data[i])
 		).toArray();
-
+		*/
+		// Serial version:
+		for(int i=0; i < this.data.length; i++) {
+			this.data[i] = op.apply(this.data[i], other.data[i]);
+		}
 	}
 
 	public Matrix elementOp(Matrix other, BinaryOperator<Double> op) {
+		// Parallel version:
+		/*
 		return new Matrix(this.rows, this.columns, IntStream.range(0, data.length).parallel().mapToDouble(
 			i -> op.apply(this.data[i], other.data[i])
 		).toArray());
+		*/
+		return new Matrix(this.rows, this.columns, (r, c) -> op.apply(this.get(r, c), other.get(r, c)));
 	}
 
 	public Matrix matmul(Matrix other) {
 		Matrix result = new Matrix(this.rows, other.columns);
-		//for(int i=0; i < rows; i++) {
-		IntStream.range(0, rows).parallel().forEach( i -> {
-			for(int j=0; j < other.columns; j++) {
+		for (int i = 0; i < rows; i++) {
+		//IntStream.range(0, rows).parallel().forEach( i -> {
+			for (int j = 0; j < other.columns; j++) {
 				double accumulator = 0;
-				for(int k=0; k < this.columns; k++) {
+				for (int k = 0; k < this.columns; k++) {
 					// TODO: This must be made generic.
-					accumulator += this.get(i,k)*other.get(k,j);
+					accumulator += this.get(i, k) * other.get(k, j);
 				}
-				result.set(i,j, accumulator);
+				result.set(i, j, accumulator);
 			}
-		});
+		//});
+		}
 		return result;
 	}
 
