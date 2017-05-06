@@ -1,9 +1,6 @@
 package com.josephcatrambone.aij;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Stack;
+import java.util.*;
 
 import com.josephcatrambone.aij.nodes.*;
 
@@ -46,7 +43,7 @@ public class Graph {
 		}
 	}
 
-	public double[] getOutput(HashMap<Node, double[]> inputs, Node node) {
+	public double[] getOutput(Map<Node, double[]> inputs, Node node) {
 		// getOutput is different slightly from forward in that we don't care about unused paths.
 		// For forward, we want to be sure _all_ different node values are populated in order.
 		// getOutput spends a cycle or two figuring out which paths it can ignore (so we don't pay for training paths).
@@ -87,7 +84,7 @@ public class Graph {
 		*/
 	}
 
-	public Matrix[] forward(HashMap<Node, Matrix> datafeed) {
+	public Matrix[] forward(Map<Node, Matrix> datafeed) {
 		Matrix[] results = new Matrix[nodes.size()];
 		for(int i=0; i < nodes.size(); i++) {
 			// Special case: inputs read from the input map.
@@ -132,7 +129,7 @@ public class Graph {
 	 * @param node The value with respect to which we want the gradient.
 	 * @return Returns an array of matrices wherein Matrix[node.id] corresponds to the node's gradient.
 	 */
-	public Matrix[] getGradient(HashMap<Node, Matrix> inputFeed, Matrix[] fwd, Node node) {
+	public Matrix[] getGradient(Map<Node, Matrix> inputFeed, Matrix[] fwd, Node node) {
 		// If forward pass isn't calculated, do that.
 		if(fwd == null) {
 			fwd = forward(inputFeed);

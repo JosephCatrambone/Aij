@@ -2,11 +2,15 @@ import com.josephcatrambone.aij.*;
 
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.nodes.*;
+import com.josephcatrambone.aij.optimizers.Optimizer;
+import com.josephcatrambone.aij.optimizers.SGD;
 import org.junit.Test;
+import org.junit.Assert;
 
 import java.io.*;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -68,6 +72,7 @@ public class NodeTest {
 		testGradient(new InverseNode(x), values, 0.01f, 0.2f);
 		testGradient(new ExpNode(x), values, 0.01f, 0.2f);
 		testGradient(new PowerNode(x, 2), values, 0.01f, 0.2f);
+		testGradient(new NegateNode(x), values, 0.01f, 0.2f);
 
 		// These require non-negative values.
 		values = new double[]{0.1f, 1, 2, 5, 10, 100, 1000, 10000, 1000000, 1000000000};
@@ -107,4 +112,67 @@ public class NodeTest {
 		assert(res[3] == 7+8+9+2+3+4+7+8+9);
 	}
 
+	@Test
+	public void testDeconvolution() {
+		Random random = new Random();
+		VariableNode convKernel = new VariableNode(new Matrix(3, 3, (i,j) -> 0.1*random.nextGaussian()));
+		VariableNode deconvKernel = new VariableNode(new Matrix(3, 3, (i,j) -> 0.1*random.nextGaussian()));
+
+		Node x = new InputNode(5, 5);
+		Node conv = new Convolution2DNode(x, convKernel, 2, 2);
+		Node act = new TanhNode(conv);
+		Node deconv = new Deconvolution2DNode(act, deconvKernel, 2, 2);
+		Node y = new InputNode(5, 5); // Target
+
+		Node loss = new RowSumNode(new PowerNode(new SubtractNode(deconv, y), 2.0));
+
+		Graph g = new Graph();
+		g.addNode(loss);
+
+		Optimizer sgd = new SGD(g, new VariableNode[]{convKernel, deconvKernel}, 0.1);
+
+		Map<Node, Matrix> inputFeed = new HashMap<>();
+		for(int i=0; i < 10000; i++) {
+			inputFeed.put(x, new Matrix(5, 5, new double[]{
+					0, 1, 0, 1, 0,
+					1, 0, 1, 0, 1,
+					0, 1, 0, 1, 0,
+					1, 0, 1, 0, 1,
+					0, 1, 0, 1, 0
+			})); // Can we learn a checkerboard?
+			inputFeed.put(y, inputFeed.get(x));
+			sgd.minimize(loss, inputFeed);
+		}
+
+		Matrix resultantMatrix = g.forward(inputFeed)[deconv.id];
+		double[] res = resultantMatrix.data; //g.getOutput(inputFeed, deconv);
+		System.out.println(resultantMatrix);
+		for(int i=0; i < 25; i++) {
+			if(i%2 == 0) {
+				assert (res[i] < 0.5);
+			} else {
+				assert(res[i] > 0.5);
+			}
+		}
+	}
+
+	@Test
+	public void resizeTest() {
+		Node input = new InputNode(2, 3);
+		Node flatten = new ReshapeNode(input, 1, -1);
+		assert(flatten.rows == 1 && flatten.columns == 2*3);
+
+		Matrix m = new Matrix(2, 3, new double[]{1, 2, 3, 4, 5, 6});
+		Matrix res = flatten.forward(new Matrix[]{m});
+		System.out.println(m);
+		System.out.println(res);
+		for(int i=0; i < 6; i++) {
+			Assert.assertEquals(res.data[i], m.data[i], 1e-3);
+		}
+
+		Matrix g = new Matrix(1, 2*3, new double[]{1, 2, 3, 4, 5, 6});
+		Matrix back = flatten.reverse(new Matrix[]{res}, g)[0];
+		System.out.println(g);
+		System.out.println(back);
+	}
 }

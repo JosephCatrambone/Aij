@@ -26,11 +26,17 @@ public class ReshapeNode extends Node {
 
 	@Override
 	public Matrix forward(Matrix[] args) {
-		return new Matrix(this.rows, this.columns, (r,c) -> args[0].data[c+r*args[0].columns]);
+		double[] newData = new double[args[0].data.length];
+		System.arraycopy(args[0].data, 0, newData, 0, args[0].data.length);
+		return new Matrix(this.rows, this.columns, newData);
+		//return new Matrix(this.rows, this.columns, (r,c) -> args[0].data[c+r*args[0].columns]);
 	}
 
 	@Override
 	public Matrix[] reverse(Matrix[] forward, Matrix adjoint) {
-		return new Matrix[]{new Matrix(forward[0].rows, forward[0].columns, (r,c) -> adjoint.data[c+r*forward[0].columns])};
+		double[] newData = new double[adjoint.data.length];
+		System.arraycopy(adjoint.data, 0, newData, 0, forward[0].data.length);
+		return new Matrix[]{new Matrix(forward[0].rows, forward[0].columns, newData)};
+		//return new Matrix[]{new Matrix(forward[0].rows, forward[0].columns, (r,c) -> adjoint.data[c+r*forward[0].columns])};
 	}
 }

@@ -4,11 +4,12 @@ import com.josephcatrambone.aij.Matrix;
 
 public class Deconvolution2DNode extends Node {
 	int padding = 0;
-	int stride = 0;
+	int rowStride = 0;
+	int columnStride = 0;
 
 	public Deconvolution2DNode() { super(); }
 
-	public Deconvolution2DNode(Node input, Node kernel, int stride, int padding) {
+	public Deconvolution2DNode(Node input, Node kernel, int rowStride, int columnStride) {
 		// Performs a shallow 2D convolution on the input node.
 		// W1 H1 D1
 		// K = num filters.
@@ -19,7 +20,8 @@ public class Deconvolution2DNode extends Node {
 		// H2 = (H1 - F + 2P)/S + 1
 		// D = k
 		// For the 2D convolution, the number of filters is restricted to 1.
-		this.stride = stride;
+		this.rowStride = rowStride;
+		this.columnStride = columnStride;
 
 		// F = kernel.width
 		// We have W2 and need to determine W1 from the parameters.
@@ -27,8 +29,8 @@ public class Deconvolution2DNode extends Node {
 		// W2 - 1 = (W1 - F + 2P)/S
 		// S*(W2-1) = W1 - F + 2P
 		// S*(W2-1) - 2P + F = W1
-		int outputRows = (input.rows-1)*stride + kernel.rows;
-		int outputColumns = (input.columns-1)*stride + kernel.columns;
+		int outputRows = (input.rows-1)*rowStride + kernel.rows;
+		int outputColumns = (input.columns-1)*columnStride + kernel.columns;
 		this.rows = outputRows;
 		this.columns = outputColumns;
 		this.inputs = new Node[]{input, kernel};
@@ -42,14 +44,14 @@ public class Deconvolution2DNode extends Node {
 			for(int inCol=0; inCol < input.columns; inCol++) {
 				// inRow/Col gives us our position on the convolution object.
 				// Calculate the center on our output image from our position on the convoluted input.
-				int outcenterRow = (inRow*stride);
-				int outcenterCol = (inCol*stride);
+				int outcenterRow = (inRow*rowStride);
+				int outcenterCol = (inCol*columnStride);
 
 				// Iterate over the kernel and use that to apply our output.
 				for(int kRow=0; kRow < kernel.rows; kRow++) {
 					for(int kCol=0; kCol < kernel.columns; kCol++) {
-						int outRow = inRow - kernel.rows/2 + kRow;
-						int outCol = inCol - kernel.columns/2 + kCol;
+						int outRow = outcenterRow - kernel.rows/2 + kRow;
+						int outCol = outcenterCol - kernel.columns/2 + kCol;
 
 						if(outRow >= 0 && outRow < output.rows && outCol >= 0 && outCol < output.columns) {
 							output.set(outRow, outCol, output.get(outRow, outCol) + kernel.get(kRow, kCol)*input.get(inRow, inCol));
@@ -73,14 +75,14 @@ public class Deconvolution2DNode extends Node {
 			for(int inCol=0; inCol < input.columns; inCol++) {
 				// inRow/Col gives us our position on the convolution object.
 				// Calculate the center on our output image from our position on the convoluted input.
-				int outcenterRow = (inRow*stride);
-				int outcenterCol = (inCol*stride);
+				int outcenterRow = (inRow*rowStride);
+				int outcenterCol = (inCol*columnStride);
 
 				// Iterate over the kernel and use that to apply our output.
 				for(int kRow=0; kRow < kernel.rows; kRow++) {
 					for(int kCol=0; kCol < kernel.columns; kCol++) {
-						int outRow = inRow - kernel.rows/2 + kRow;
-						int outCol = inCol - kernel.columns/2 + kCol;
+						int outRow = outcenterRow - kernel.rows/2 + kRow;
+						int outCol = outcenterCol - kernel.columns/2 + kCol;
 
 						if(outRow >= 0 && outRow < adjoint.rows && outCol >= 0 && outCol < adjoint.columns) {
 							// output.set(outRow, outCol, output.get(outRow, outCol) + kernel.get(kRow, kCol)*input.get(inRow, inCol));
@@ -100,10 +102,11 @@ public class Deconvolution2DNode extends Node {
 	}
 
 	// Used to augment serialization.
-	public String extraDataToString() { return padding + "," + stride; };
+	public String extraDataToString() { return padding + "," + rowStride + "," + columnStride; };
 	public void extraDataFromString(String s) {
 		String[] tokens = s.split(",");
 		this.padding = Integer.parseInt(tokens[0]);
-		this.stride = Integer.parseInt(tokens[1]);
+		this.rowStride = Integer.parseInt(tokens[1]);
+		this.rowStride = Integer.parseInt(tokens[2]);
 	}
 }

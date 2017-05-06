@@ -1,6 +1,9 @@
 package com.josephcatrambone.aij;
 
 import com.josephcatrambone.aij.nodes.*;
+import com.josephcatrambone.aij.optimizers.Momentum;
+import com.josephcatrambone.aij.optimizers.Optimizer;
+import com.josephcatrambone.aij.optimizers.SGD;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,9 +16,9 @@ import java.util.stream.IntStream;
  * Model is a high-level wrapper for graph which has some common uses, like making dense layers and conv layers.
  */
 public class Model extends Graph {
-	public enum Optimizer { SGD, MOMENTUM, ADAGRAD };
+	//public enum Optimizer { SGD, MOMENTUM, ADAGRAD };
 	public enum Activation { NONE, TANH, SIGMOID, RELU, SOFTMAX };
-	public enum Loss { ABS, SQUARED };
+	public enum Loss { ABS, SQUARED, BINARY_CROSS_ENTROPY };
 
 	private Random random; // Used for weight init.
 
@@ -90,6 +93,16 @@ public class Model extends Graph {
 				case SQUARED:
 					lossNode = new PowerNode(diff, 2.0f);
 					break;
+				case BINARY_CROSS_ENTROPY:
+					// Binary XENT = target*log(pred) + (1-target)*log(1-pred)
+					//Node flatTarget = new ReshapeNode(targetNode, 1, -1);
+					//Node flatOutput = new ReshapeNode(outputNode, 1, -1);
+					// TODO: This has issues with AOOB exceptions. I think perhaps RowSumNode is screwing with gradients.
+					lossNode = new AddNode(
+						new MultiplyNode(targetNode, new LogNode(outputNode)), // target*log(pred)
+						new MultiplyNode(new SubtractNode(new ConstantNode(1.0, targetNode), targetNode), new LogNode(new SubtractNode(new ConstantNode(1.0, outputNode), outputNode)))
+					);
+					break;
 			}
 			lossNode = new RowSumNode(lossNode); // Roll up into a single value.
 			addNode(lossNode);
@@ -109,12 +122,10 @@ public class Model extends Graph {
 		HashMap<Node, Matrix> inputFeed = new HashMap<>();
 		inputFeed.put(inputNode, new Matrix(inputNode.rows, inputNode.columns, x));
 		inputFeed.put(targetNode, new Matrix(targetNode.rows, targetNode.columns, y));
-		Matrix[] grads = getGradient(inputFeed, null, lossNode);
 
-		// Apply the gradients, scaled, to each of the learning variables.
-		for(VariableNode n : trainableVariables) {
-			n.getVariable().elementOp_i(grads[n.id], (w, dw) -> w - learningRate*dw);
-		}
+		// Minimize loss
+		Optimizer optimizer = new Momentum(this, this.trainableVariables.toArray(new VariableNode[0]), learningRate, 0.5);
+		optimizer.minimize(lossNode, inputFeed);
 	}
 
 	public void fit(double[][] x, double [][] y, double learningRate, Loss loss) {
@@ -206,6 +217,20 @@ public class Model extends Graph {
 
 	public void addFlattenLayer() {
 		outputNode = new ReshapeNode(outputNode, 1, -1);
+		addNode(outputNode);
+	}
+
+	public void addReshapeLayer(int height, int width) {
+		outputNode = new ReshapeNode(outputNode, height, width);
+		addNode(outputNode);
+	}
+
+	public void addDeconvLayer(int kernelHeight, int kernelWidth, int yStride, int xStride, Activation act) {
+		VariableNode kernel = xavierWeight(kernelHeight, kernelWidth);
+		Node deconv = new Deconvolution2DNode(outputNode, kernel, yStride, xStride);
+		VariableNode bias = randomWeight(deconv.rows, deconv.columns); // TODO: Verify these dimensions are correct.
+		Node prod = new AddNode(deconv, bias);
+		outputNode = makeActivationNode(prod, act);
 		addNode(outputNode);
 	}
 }
