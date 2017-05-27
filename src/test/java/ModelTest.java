@@ -259,7 +259,7 @@ public class ModelTest {
 		model.addFlattenLayer();
 		model.addDenseLayer(64, Model.Activation.RELU);
 		model.addDenseLayer(32, Model.Activation.TANH);
-		model.addDenseLayer(10, Model.Activation.SOFTMAX); // Representation.
+		model.addDenseLayer(100, Model.Activation.TANH); // Representation.
 		model.addDenseLayer(32, Model.Activation.TANH);
 		model.addDenseLayer(36, Model.Activation.RELU);
 		model.addReshapeLayer(6, 6);
@@ -282,22 +282,21 @@ public class ModelTest {
 		}
 
 		// Pick a cutoff.  80% training?
-		float learningRate = 0.01f;
-		int trainingCutoff = (int)(imageCount*0.8f);
+		float learningRate = 0.001f;
 		for(int i=0; i < ITERATION_COUNT; i++) {
 			double[][] batch = new double[BATCH_SIZE][images[0].length];
 			// Pick N items at random.
 			for(int j=0; j < BATCH_SIZE; j++) {
-				int ex = random.nextInt(trainingCutoff);
+				int ex = random.nextInt(imageCount);
 				batch[j] = images[ex];
 			}
 			// Train the model for an iteration.
-			model.fit(batch, batch, learningRate, Model.Loss.ABS);
+			model.fit(batch, batch, learningRate, Model.Loss.SQUARED);
 			// Check if we should report:
 			if(i % REPORT_INTERVAL == 0) {
-				learningRate *= 0.999;
+				//learningRate *= 0.999;
 				// Select an example from the test set.
-				int ex = trainingCutoff+random.nextInt(imageCount-trainingCutoff);
+				int ex = random.nextInt(imageCount);
 				double[] guess = model.predict(images[ex]);
 				// Display the image on the left and the guesses on the right.
 				for(int r=0; r < rows; r++) {
@@ -324,6 +323,6 @@ public class ModelTest {
 		}
 
 		// Save the model to a file.
-		model.serializeToString();
+		System.out.println(model.serializeToString());
 	}
 }

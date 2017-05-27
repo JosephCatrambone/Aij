@@ -45,8 +45,8 @@ public class Convolution2DNode extends Node {
 				for(int rk = 0; rk < kernel.rows; rk++) {
 					for(int ck=0; ck < kernel.columns; ck++) {
 						// Delta position
-						int inR = rk-kernel.rows/2+inRCenter;
-						int inC = ck-kernel.columns/2 + inCCenter;
+						int inR = rk-(kernel.rows/2)+inRCenter;
+						int inC = ck-(kernel.columns/2)+inCCenter;
 						if(inR >= 0 && inR < input.rows && inC >= 0 && inC < input.columns) {
 							accumulator += input.get(inR, inC)*kernel.get(rk, ck);
 						}
@@ -71,8 +71,8 @@ public class Convolution2DNode extends Node {
 				// Center kernel at r,c
 				for(int rk = 0; rk < kernel.rows; rk++) {
 					for(int ck=0; ck < kernel.columns; ck++) {
-						int outRow = rk-kernel.rows/2 + (r*rowStride);
-						int outColumn = ck-kernel.columns/2 + (c*columnStride);
+						int outRow = rk-(kernel.rows/2) + (r*rowStride);
+						int outColumn = ck-(kernel.columns/2) + (c*columnStride);
 						if(outRow >= 0 && outRow < inputAdjoint.rows && outColumn >= 0 && outColumn < inputAdjoint.columns) {
 							inputAdjoint.set(outRow, outColumn, inputAdjoint.get(outRow, outColumn) + adjoint.get(r, c)*kernel.get(rk, ck));
 							kernelAdjoint.set(rk, ck, kernelAdjoint.get(rk, ck) + adjoint.get(r, c)*input.get(outRow, outColumn));

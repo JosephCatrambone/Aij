@@ -9,7 +9,7 @@ import java.util.*;
 /**
  * Created by jcatrambone on 2/6/17.
  */
-public class SICKTest {
+public class SickTest {
 
 	public Random random = new Random();
 	public int inputSize = 127;
@@ -107,9 +107,8 @@ public class SICKTest {
 				new MultiplyNode(newForgetGate, previousCell)
 			);
 
-			hiddenState = new MultiplyNode(newOutputState, new TanhNode(newCellState));
+			previousHidden = new MultiplyNode(newOutputState, new TanhNode(newCellState));
 
-			previousHidden = hiddenState;
 			previousCell = newCellState;
 
 			Node outputState = newOutputState; // SoftmaxRowNode(new AddNode(new MatrixMultiplyNode(hiddenState, weight_ho), bias_o));
@@ -208,20 +207,13 @@ public class SICKTest {
 		VariableNode n_b_c = new VariableNode(b_c); 
 		VariableNode n_b_o = new VariableNode(b_o); 
 
-		Node previousHidden = new InputNode(1, hiddenSize);
-		Node hiddenState = new AddNode(
-				new TanhNode(new AddNode(new MatrixMultiplyNode(previousHidden, weight_hh), bias_h)),
-				new TanhNode(new MatrixMultiplyNode(inputNode, weight_ih))
-		);
-		Node outputNode = new SoftmaxRowNode(new AddNode(new MatrixMultiplyNode(hiddenState, weight_ho), bias_o));
-		g.addNode(outputNode);
-
 		// Step n steps.
 		String s = "";
 		Matrix lastOut = new Matrix(1, inputSize);
 		Matrix lastHidden = new Matrix(1, hiddenSize);
 		lastOut.data[seed] = 1.0;
 		for(int i=0; i < 100; i++) {
+			/*
 			// Set our input states.
 			HashMap<Node, Matrix> inputFeed = new HashMap<>();
 			inputFeed.put(inputNode, lastOut);
@@ -234,6 +226,7 @@ public class SICKTest {
 			s += selectCharacterFromProbabilityDistribution(states[outputNode.id].data);
 			lastOut = states[outputNode.id];
 			lastHidden = states[hiddenState.id];
+			*/
 		}
 
 		// Also, save the graph since we have it.
@@ -284,7 +277,7 @@ public class SICKTest {
 			String sent = "Free beer";
 			TrainingPair p = sentenceToTrainingPair(sent);
 			Matrix[] grads = unrollAndTrain(p.x, p.y);
-
+/*
 			w_i = w_hh.elementOp(grads[0], (w, dw) -> w - dw*learningRate);
 			w_f = w_hh.elementOp(grads[1], (w, dw) -> w - dw*learningRate);
 			w_c = w_hh.elementOp(grads[2], (w, dw) -> w - dw*learningRate);
@@ -298,7 +291,7 @@ public class SICKTest {
 			b_c = w_hh.elementOp(grads[10], (w, dw) -> w - dw*learningRate);
 			b_o = w_hh.elementOp(grads[11], (w, dw) -> w - dw*learningRate);
 			//b_o.elementOp_i(grads[4], (w, dw) -> w - dw*learningRate);
-
+*/
 			if(iteration % 100 == 0) {
 				int seed = (int)'A' + random.nextInt(26);
 				System.out.println("Sample: " + (char)seed + sampleOutput(seed));

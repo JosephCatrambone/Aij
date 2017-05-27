@@ -50,8 +50,8 @@ public class Deconvolution2DNode extends Node {
 				// Iterate over the kernel and use that to apply our output.
 				for(int kRow=0; kRow < kernel.rows; kRow++) {
 					for(int kCol=0; kCol < kernel.columns; kCol++) {
-						int outRow = outcenterRow - kernel.rows/2 + kRow;
-						int outCol = outcenterCol - kernel.columns/2 + kCol;
+						int outRow = outcenterRow - (kernel.rows/2) + kRow;
+						int outCol = outcenterCol - (kernel.columns/2) + kCol;
 
 						if(outRow >= 0 && outRow < output.rows && outCol >= 0 && outCol < output.columns) {
 							output.set(outRow, outCol, output.get(outRow, outCol) + kernel.get(kRow, kCol)*input.get(inRow, inCol));

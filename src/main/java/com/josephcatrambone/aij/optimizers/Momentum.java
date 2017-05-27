@@ -7,6 +7,8 @@ import com.josephcatrambone.aij.nodes.VariableNode;
 
 import java.util.Map;
 
+import static java.lang.Math.*;
+
 /**
  * Created by jcatrambone on 5/5/17.
  */
@@ -20,7 +22,13 @@ public class Momentum extends Optimizer {
 		super(g, trainableVariables);
 		this.learningRate = learningRate;
 		this.momentum = momentum;
-		previousUpdate = new Matrix[];
+		// Find the maximum ID of the trainable variables and use that to allocate the array.
+		// It wastes a little bit of space but means we don't need a special data structure to map stuff.
+		int maxId = -1;
+		for(VariableNode tv : trainableVariables) {
+			maxId = max(maxId, tv.id);
+		}
+		previousUpdate = new Matrix[maxId+1];
 	}
 
 	@Override

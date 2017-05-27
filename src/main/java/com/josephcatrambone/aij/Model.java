@@ -84,7 +84,7 @@ public class Model extends Graph {
 		// If this is the first time we've run fit, we'll need to make our loss node.
 		if(targetNode == null || lossNode == null) {
 			// TODO: Sanity check if target node size changed.
-			targetNode = new InputNode(1, outputNode.columns);
+			targetNode = new InputNode(outputNode.rows, outputNode.columns);
 			Node diff = new SubtractNode(outputNode, targetNode);
 			switch(loss) {
 				case ABS:
@@ -104,7 +104,7 @@ public class Model extends Graph {
 					);
 					break;
 			}
-			lossNode = new RowSumNode(lossNode); // Roll up into a single value.
+			lossNode = new CollapseSumNode(lossNode); // Roll up into a single value.
 			addNode(lossNode);
 			// Need these for save/restore.
 			inputNode.name = "input";
