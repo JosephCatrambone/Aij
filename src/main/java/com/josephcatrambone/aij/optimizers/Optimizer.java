@@ -13,10 +13,16 @@ import java.util.Map;
 public abstract class Optimizer {
 	public Graph graph;
 	public VariableNode[] variables;
+	public Matrix[] accumulatedGradients = null;
+
 	public Optimizer(Graph g, VariableNode[] variables) {
 		this.graph = g;
 		this.variables = variables;
 	}
+
+	public abstract void accumulateGradients(Node loss, Map<Node, Matrix> inputFeed);
+	public abstract void applyGradients();
+	public abstract void clearGradients();
 
 	public abstract double minimize(Node loss, Map<Node, Matrix> inputFeed);
 }

@@ -19,6 +19,33 @@ public class SGD extends Optimizer {
 		this.learningRate = learningRate;
 	}
 
+
+	@Override
+	public void accumulateGradients(Node loss, Map<Node, Matrix> inputFeed) {
+		Matrix[] fwd = graph.forward(inputFeed);
+		Matrix[] grads = graph.getGradient(inputFeed, fwd, loss);
+
+		if(accumulatedGradients == null) {
+			accumulatedGradients = grads;
+		} else {
+			for(VariableNode n : variables) {
+				accumulatedGradients[n.id].elementOp_i(grads[n.id], (w1, w2) -> w1 + w2);
+			}
+		}
+	}
+
+	@Override
+	public void applyGradients() {
+		for(VariableNode n : variables) {
+			n.getVariable().elementOp_i(accumulatedGradients[n.id], (w, dw) -> w - learningRate*dw);
+		}
+	}
+
+	@Override
+	public void clearGradients() {
+		accumulatedGradients = null;
+	}
+
 	@Override
 	public double minimize(Node loss, Map<Node, Matrix> inputFeed) {
 		Matrix[] fwd = graph.forward(inputFeed);
@@ -28,6 +55,6 @@ public class SGD extends Optimizer {
 		for(VariableNode n : variables) {
 			n.getVariable().elementOp_i(grads[n.id], (w, dw) -> w - learningRate*dw);
 		}
-		return 0;
+		return fwd[loss.id].data[0];
 	}
 }

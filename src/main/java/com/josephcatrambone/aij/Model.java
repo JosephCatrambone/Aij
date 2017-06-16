@@ -18,7 +18,7 @@ import java.util.stream.IntStream;
 public class Model extends Graph {
 	//public enum Optimizer { SGD, MOMENTUM, ADAGRAD };
 	public enum Activation { NONE, TANH, SIGMOID, RELU, SOFTMAX };
-	public enum Loss { ABS, SQUARED, BINARY_CROSS_ENTROPY };
+	public enum Loss { ABS, SQUARED, BINARY_CROSS_ENTROPY, SOFTMAX_CROSS_ENTROPY };
 
 	private Random random; // Used for weight init.
 
@@ -129,13 +129,26 @@ public class Model extends Graph {
 	}
 
 	public void fit(double[][] x, double [][] y, double learningRate, Loss loss) {
+		finalizeNetwork(loss);
+		assert(x[0].length == this.inputNode.rows*this.inputNode.columns);
+
+		Optimizer optimizer = new SGD(this, this.trainableVariables.toArray(new VariableNode[0]), learningRate);
+
 		for(int i=0; i < x.length; i++) {
-			fit(x[i], y[i], learningRate, loss);
+			// Calculate the difference and apply the gradient.
+			HashMap<Node, Matrix> inputFeed = new HashMap<>();
+			inputFeed.put(inputNode, new Matrix(inputNode.rows, inputNode.columns, x[i]));
+			inputFeed.put(targetNode, new Matrix(targetNode.rows, targetNode.columns, y[i]));
+
+			// Minimize loss
+			optimizer.accumulateGradients(lossNode, inputFeed);
 		}
+		optimizer.applyGradients();
+		optimizer.clearGradients();
 	}
 
 	/***
-	 * fitBatch, unlike fit, calculates the gradient for all examples before applying it to the model's variables.
+	 * fitBatch, unlike fit, calculates the gradient for all examples in parallel.
 	 * @param x
 	 * @param y
 	 * @param learningRate
@@ -206,9 +219,13 @@ public class Model extends Graph {
 		addNode(outputNode);
 	}
 
-	public void addConvLayer(int kernelHeight, int kernelWidth, int yStride, int xStride, Activation act) {
-		VariableNode kernel = xavierWeight(kernelHeight, kernelWidth);
-		Node conv = new Convolution2DNode(outputNode, kernel, yStride, xStride);
+	public void addConvLayer(int numFilters, int kernelHeight, int kernelWidth, int yStride, int xStride, Activation act) {
+		VariableNode[] kernels = new VariableNode[numFilters];
+		for(int i=0; i < numFilters; i++) {
+			VariableNode kernel = xavierWeight(kernelHeight, kernelWidth);
+			kernels[i] = kernel;
+		}
+		Node conv = new Convolution2DNode(outputNode, kernels, yStride, xStride);
 		VariableNode bias = randomWeight(conv.rows, conv.columns);
 		Node prod = new AddNode(conv, bias);
 		outputNode = makeActivationNode(prod, act);
@@ -231,6 +248,16 @@ public class Model extends Graph {
 		VariableNode bias = randomWeight(deconv.rows, deconv.columns); // TODO: Verify these dimensions are correct.
 		Node prod = new AddNode(deconv, bias);
 		outputNode = makeActivationNode(prod, act);
+		addNode(outputNode);
+	}
+
+	/*** addLayer
+	 * Assumes the user has already fetched the current output node.
+	 * Pushes the new output node onto the stack of operations.
+	 * @param node A node which takes the (former) output node and transforms it.  Will become the new output node.
+	 */
+	public void addLayer(Node node) {
+		outputNode = node;
 		addNode(outputNode);
 	}
 }

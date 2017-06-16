@@ -108,8 +108,9 @@ public class NodeTest {
 		double[] res = g.getOutput(inputFeed, c);
 		assert(res[0] == 1+2+6+7);
 		assert(res[1] == 2+3+4+7+8+9);
-		assert(res[2] == 6+7+1+2+6+7);
-		assert(res[3] == 7+8+9+2+3+4+7+8+9);
+		assert(res[2] == 4+5+9+0);
+		assert(res[3] == 6+7+1+2+6+7);
+		assert(res[4] == 7+8+9+2+3+4+7+8+9);
 	}
 
 	@Test

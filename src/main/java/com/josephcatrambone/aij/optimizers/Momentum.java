@@ -32,19 +32,42 @@ public class Momentum extends Optimizer {
 	}
 
 	@Override
-	public double minimize(Node loss, Map<Node, Matrix> inputFeed) {
+	public void accumulateGradients(Node loss, Map<Node, Matrix> inputFeed) {
 		Matrix[] fwd = graph.forward(inputFeed);
 		Matrix[] grads = graph.getGradient(inputFeed, fwd, loss);
 
+		if(accumulatedGradients == null) {
+			accumulatedGradients = grads;
+		} else {
+			for(VariableNode n : variables) {
+				accumulatedGradients[n.id].elementOp_i(grads[n.id], (a, b) -> a+b);
+			}
+		}
+	}
+
+	@Override
+	public void applyGradients() {
 		// Apply the gradients, scaled, to each of the learning variables.
 		for(VariableNode n : variables) {
 			if(previousUpdate[n.id] == null) {
-				previousUpdate[n.id] = grads[n.id];
+				previousUpdate[n.id] = accumulatedGradients[n.id];
 			} else {
-				previousUpdate[n.id].elementOp_i(grads[n.id], (oldGrad, newGrad) -> (1.0 - momentum) * newGrad + (momentum) * oldGrad);
+				previousUpdate[n.id].elementOp_i(accumulatedGradients[n.id], (oldGrad, newGrad) -> (1.0 - momentum) * newGrad + (momentum) * oldGrad);
 			}
 			n.getVariable().elementOp_i(previousUpdate[n.id], (w, dw) -> w - learningRate*dw);
 		}
+	}
+
+	@Override
+	public void clearGradients() {
+		accumulatedGradients = null;
+	}
+
+	@Override
+	public double minimize(Node loss, Map<Node, Matrix> inputFeed) {
+		accumulateGradients(loss, inputFeed);
+		applyGradients();
+		clearGradients();
 		return 0;
 	}
 }

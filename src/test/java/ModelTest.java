@@ -1,5 +1,6 @@
 import com.josephcatrambone.aij.Model;
 import org.junit.Test;
+import org.junit.Assume;
 
 import java.io.*;
 import java.util.Random;
@@ -13,8 +14,8 @@ public class ModelTest {
 	@Test
 	public void saveRestoreTest() {
 		Model m = new Model(20, 20);
-		m.addConvLayer(2, 2, 1, 1, Model.Activation.NONE);
-		m.addConvLayer(2, 2, 1, 1, Model.Activation.NONE);
+		m.addConvLayer(1, 2, 2, 1, 1, Model.Activation.NONE);
+		m.addConvLayer(1, 2, 2, 1, 1, Model.Activation.NONE);
 		m.addFlattenLayer();
 		m.addDenseLayer(10, Model.Activation.NONE);
 		m.addDenseLayer(11, Model.Activation.TANH);
@@ -107,6 +108,20 @@ public class ModelTest {
 		}
 	}
 
+	private String luminanceToCharacter(double val) {
+		if(val > 0.8f) {
+			return "█";
+		} else if(val > 0.6) {
+			return "▓";
+		} else if(val > 0.4) {
+			return "▒";
+		} else if(val > 0.2) {
+			return "░";
+		} else {
+			return ".";
+		}
+	}
+
 	private double[][] loadMNISTExamples(String filename) throws IOException {
 		double[][] images;
 
@@ -149,6 +164,9 @@ public class ModelTest {
 
 	@Test
 	public void testMNIST() throws IOException {
+		Assume.assumeTrue(new File("train-images-idx3-ubyte.gz").exists());
+		Assume.assumeTrue(new File("train-labels-idx1-ubyte.gz").exists());
+
 		final int ITERATION_COUNT = 10000000;
 		final int BATCH_SIZE = 10;
 		final int REPORT_INTERVAL = 100;
@@ -165,8 +183,8 @@ public class ModelTest {
 
 		// Build and train our model.
 		model = new Model(rows, columns);
-		model.addConvLayer(3, 3, 2, 2, Model.Activation.RELU);
-		model.addConvLayer(3, 3, 2, 2, Model.Activation.RELU);
+		model.addConvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
+		model.addConvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
 		model.addFlattenLayer();
 		model.addDenseLayer(64, Model.Activation.RELU);
 		model.addDenseLayer(32, Model.Activation.TANH);
@@ -211,11 +229,7 @@ public class ModelTest {
 				for(int r=0; r < rows; r++) {
 					// Show the image.
 					for(int c=0; c < columns; c++) {
-						if(images[ex][c+r*columns] > 0.5f) {
-							System.out.print("#");
-						} else {
-							System.out.print(".");
-						}
+						System.out.print(luminanceToCharacter(images[ex][c+r*columns]));
 					}
 
 					// For each of our guesses, display some pretty graphs.
@@ -244,7 +258,10 @@ public class ModelTest {
 
 	@Test
 	public void testGenerateMNIST() throws IOException {
-		final int ITERATION_COUNT = 10000000;
+		final String trainingImagesFilename = "train-images-idx3-ubyte.gz";
+		Assume.assumeTrue(new File(trainingImagesFilename).exists());
+
+		final int ITERATION_COUNT = 100000;
 		final int BATCH_SIZE = 10;
 		final int REPORT_INTERVAL = 1000;
 		Model model;
@@ -254,8 +271,8 @@ public class ModelTest {
 
 		// Build and train our model.
 		model = new Model(rows, columns);
-		model.addConvLayer(4, 4, 2, 2, Model.Activation.RELU);
-		model.addConvLayer(3, 3, 2, 2, Model.Activation.RELU);
+		model.addConvLayer(1, 4, 4, 2, 2, Model.Activation.RELU);
+		model.addConvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
 		model.addFlattenLayer();
 		model.addDenseLayer(64, Model.Activation.RELU);
 		model.addDenseLayer(32, Model.Activation.TANH);
@@ -267,7 +284,7 @@ public class ModelTest {
 		model.addDeconvLayer(4, 4, 2, 2, Model.Activation.RELU);
 
 		// Load data.
-		double[][] images = loadMNISTExamples("train-images-idx3-ubyte.gz");
+		double[][] images = loadMNISTExamples(trainingImagesFilename);
 		int imageCount = images.length;
 
 		// Split up the training data into target and test.
@@ -282,7 +299,7 @@ public class ModelTest {
 		}
 
 		// Pick a cutoff.  80% training?
-		float learningRate = 0.001f;
+		float learningRate = 1e-2f;
 		for(int i=0; i < ITERATION_COUNT; i++) {
 			double[][] batch = new double[BATCH_SIZE][images[0].length];
 			// Pick N items at random.
@@ -302,19 +319,13 @@ public class ModelTest {
 				for(int r=0; r < rows; r++) {
 					// Show the image.
 					for(int c=0; c < columns; c++) {
-						if(images[ex][c+r*columns] > 0.5f) {
-							System.out.print("#");
-						} else {
-							System.out.print(".");
-						}
+						double pixval = images[ex][c+r*columns];
+						System.out.print(luminanceToCharacter(pixval));
 					}
 					System.out.print(" | ");
 					for(int c=0; c < columns; c++) {
-						if(guess[c+r*columns] > 0.5f) {
-							System.out.print("#");
-						} else {
-							System.out.print(".");
-						}
+						double pixval = guess[c+r*columns];
+						System.out.print(luminanceToCharacter(pixval));
 					}
 					System.out.println();
 				}
