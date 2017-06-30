@@ -242,9 +242,13 @@ public class Model extends Graph {
 		addNode(outputNode);
 	}
 
-	public void addDeconvLayer(int kernelHeight, int kernelWidth, int yStride, int xStride, Activation act) {
-		VariableNode kernel = xavierWeight(kernelHeight, kernelWidth);
-		Node deconv = new Deconvolution2DNode(outputNode, kernel, yStride, xStride);
+	public void addDeconvLayer(int numFilters, int kernelHeight, int kernelWidth, int yStride, int xStride, Activation act) {
+		VariableNode[] kernels = new VariableNode[numFilters];
+		for(int i=0; i < numFilters; i++) {
+			VariableNode kernel = xavierWeight(kernelHeight, kernelWidth);
+			kernels[i] = kernel;
+		}
+		Node deconv = new Deconvolution2DNode(outputNode, kernels, yStride, xStride);
 		VariableNode bias = randomWeight(deconv.rows, deconv.columns); // TODO: Verify these dimensions are correct.
 		Node prod = new AddNode(deconv, bias);
 		outputNode = makeActivationNode(prod, act);
@@ -257,6 +261,7 @@ public class Model extends Graph {
 	 * @param node A node which takes the (former) output node and transforms it.  Will become the new output node.
 	 */
 	public void addLayer(Node node) {
+		// TODO: Should we override ADD NODE?  It may cause confusion.
 		outputNode = node;
 		addNode(outputNode);
 	}

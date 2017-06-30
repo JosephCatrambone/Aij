@@ -1,4 +1,5 @@
 import com.josephcatrambone.aij.Model;
+import com.josephcatrambone.aij.nodes.PadCropNode;
 import org.junit.Test;
 import org.junit.Assume;
 
@@ -261,9 +262,11 @@ public class ModelTest {
 		final String trainingImagesFilename = "train-images-idx3-ubyte.gz";
 		Assume.assumeTrue(new File(trainingImagesFilename).exists());
 
+		float learningRate = 1e-3f;
+		final double NOISE_LEVEL = 0.1;
 		final int ITERATION_COUNT = 100000;
 		final int BATCH_SIZE = 10;
-		final int REPORT_INTERVAL = 1000;
+		final int REPORT_INTERVAL = 100;
 		Model model;
 
 		int rows = 28;
@@ -271,17 +274,18 @@ public class ModelTest {
 
 		// Build and train our model.
 		model = new Model(rows, columns);
-		model.addConvLayer(1, 4, 4, 2, 2, Model.Activation.RELU);
+		model.addConvLayer(4, 3, 3, 2, 2, Model.Activation.RELU);
 		model.addConvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
 		model.addFlattenLayer();
-		model.addDenseLayer(64, Model.Activation.RELU);
-		model.addDenseLayer(32, Model.Activation.TANH);
-		model.addDenseLayer(100, Model.Activation.TANH); // Representation.
-		model.addDenseLayer(32, Model.Activation.TANH);
-		model.addDenseLayer(36, Model.Activation.RELU);
-		model.addReshapeLayer(6, 6);
-		model.addDeconvLayer(3, 3, 2, 2, Model.Activation.RELU);
-		model.addDeconvLayer(4, 4, 2, 2, Model.Activation.RELU);
+		model.addDenseLayer(128, Model.Activation.RELU);
+		model.addDenseLayer(20, Model.Activation.RELU); // Representation.
+		model.addDenseLayer(128, Model.Activation.RELU);
+		model.addDenseLayer(7*7*4, Model.Activation.RELU);
+		model.addReshapeLayer(7, 7*4);
+		model.addDeconvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
+		model.addDeconvLayer(4, 3, 3, 2, 2, Model.Activation.RELU);
+		//model.addLayer(new PadCropNode(rows, columns, model.getOutputNode())); // Pad an extra on the end.
+		System.out.println("Model output size: " + model.getOutputNode().rows + ", " + model.getOutputNode().columns);
 
 		// Load data.
 		double[][] images = loadMNISTExamples(trainingImagesFilename);
@@ -299,18 +303,23 @@ public class ModelTest {
 		}
 
 		// Pick a cutoff.  80% training?
-		float learningRate = 1e-2f;
 		for(int i=0; i < ITERATION_COUNT; i++) {
 			double[][] batch = new double[BATCH_SIZE][images[0].length];
+			double[][] label = new double[BATCH_SIZE][images[0].length];
 			// Pick N items at random.
 			for(int j=0; j < BATCH_SIZE; j++) {
 				int ex = random.nextInt(imageCount);
-				batch[j] = images[ex];
+				label[j] = images[ex];
+				batch[j] = new double[images[0].length];
+				for(int k=0; k < batch[j].length; k++) {
+					batch[j][k] = images[ex][k] + random.nextGaussian()*NOISE_LEVEL;
+				}
 			}
 			// Train the model for an iteration.
-			model.fit(batch, batch, learningRate, Model.Loss.SQUARED);
+			model.fit(batch, label, learningRate, Model.Loss.SQUARED);
 			// Check if we should report:
-			if(i % REPORT_INTERVAL == 0) {
+			if(i % REPORT_INTERVAL == 0 || i < 10) {
+				System.out.println(i);
 				//learningRate *= 0.999;
 				// Select an example from the test set.
 				int ex = random.nextInt(imageCount);

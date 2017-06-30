@@ -20,8 +20,6 @@ public class Deconvolution2DNode extends Node {
 		// H2 = (H1 - F + 2P)/S + 1
 		// D = k
 		// For the 2D convolution, the number of filters is restricted to 1.
-		this.rowStride = rowStride;
-		this.columnStride = columnStride;
 
 		// F = kernel.width
 		// We have W2 and need to determine W1 from the parameters.
@@ -29,30 +27,25 @@ public class Deconvolution2DNode extends Node {
 		// W2 - 1 = (W1 - F + 2P)/S
 		// S*(W2-1) = W1 - F + 2P
 		// S*(W2-1) - 2P + F = W1
-		int outputRows = (input.rows-1)*rowStride + kernel.rows;
-		int outputColumns = (input.columns-1)*columnStride + kernel.columns;
-		this.rows = outputRows;
-		this.columns = outputColumns;
-		this.inputs = new Node[]{input, kernel};
+
+		this(input, new Node[]{kernel}, rowStride, columnStride);
 	}
 
 	public Deconvolution2DNode(Node input, Node[] kernels, int rowStride, int columnStride) {
 		this.rowStride = rowStride;
 		this.columnStride = columnStride;
 
-		int outputRows = (input.rows-1)*rowStride;
+		int outputRows = (input.rows)*rowStride;
 		// For convnode: int outputColumns = (input.columns/columnStride + 1)*kernels.length;
 		// Swapping outputColumns and input.columns...: input.columns = (outputColumns/columnStride +1)*kernels.length.
 		// input.columns/kernels.length = outputColumns/columnStride+1
 		// ((input.columns/kernels.length)-1)*columnStride
-		int outputColumns = ((input.columns/kernels.length)-1)*columnStride;
+		int outputColumns = ((input.columns/kernels.length))*columnStride;
 		this.rows = outputRows;
 		this.columns = outputColumns;
 		this.inputs = new Node[kernels.length+1];
 		this.inputs[0] = input;
-		for(int i=0; i < kernels.length; i++) {
-			this.inputs[i+1] = kernels[i];
-		}
+		System.arraycopy(kernels, 0, this.inputs, 1, kernels.length);
 	}
 
 	public Matrix forward(Matrix[] args) {

@@ -1,5 +1,6 @@
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.Model;
+import com.josephcatrambone.aij.nodes.PadCropNode;
 import org.junit.Assume;
 import org.junit.Test;
 
@@ -89,16 +90,25 @@ public class ConversationalConvnet {
 
 		// Build Model
 		Model m = new Model(sentenceLength, printableCharacters.length);
-		m.addConvLayer(1, 5, printableCharacters.length, 1, 1, Model.Activation.TANH);
-		// Currently 80x1
+		// Encoder vv
+		m.addConvLayer(32, 3, printableCharacters.length, 2, printableCharacters.length/2, Model.Activation.RELU); //128x64 out.
+		m.addConvLayer(64, 32, 64, 16, 32, Model.Activation.TANH); // 64x1280
+		int preFlattenedRows = m.getOutputNode().rows;
+		int preFlattenedColumns = m.getOutputNode().columns;
 		m.addFlattenLayer();
-		m.addDenseLayer(512, Model.Activation.TANH);
-		m.addDenseLayer(1024, Model.Activation.TANH);
-		m.addDenseLayer(252, Model.Activation.TANH);
-		m.addReshapeLayer(252, 1);
-		// Back to 80x1
-		m.addDeconvLayer(5, printableCharacters.length, 1, 1, Model.Activation.TANH);
+		m.addDenseLayer(128, Model.Activation.TANH);
+		// Encoder output ^^
+
+		m.addDenseLayer(512, Model.Activation.TANH); // Representation
+
+		// Decoder vv
+		m.addDenseLayer(preFlattenedColumns*preFlattenedRows, Model.Activation.TANH);
+		m.addReshapeLayer(preFlattenedRows, preFlattenedColumns);
+		m.addDeconvLayer(64, 32, 64, 16, 32, Model.Activation.TANH);
+		m.addDeconvLayer(32, 3, printableCharacters.length, 2, printableCharacters.length/2, Model.Activation.SIGMOID);
 		//m.addNode(new PadCropNode(sentenceLength, printableCharacters.length, m.getOutputNode()));
+		// Decoder ^^
+
 		System.out.println(m.getOutputNode().rows + ", " + m.getOutputNode().columns);
 
 		// Load training data.

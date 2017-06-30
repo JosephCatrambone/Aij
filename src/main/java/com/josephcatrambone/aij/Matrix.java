@@ -110,18 +110,21 @@ public class Matrix implements Serializable {
 	}
 
 	public Matrix matmul(Matrix other) {
+		// TODO: This function consumes around 60% of CPU time.
 		Matrix result = new Matrix(this.rows, other.columns);
+
 		for (int i = 0; i < rows; i++) {
-		//IntStream.range(0, rows).parallel().forEach( i -> {
+			//IntStream.range(0, rows).parallel().forEach( i -> {
 			for (int j = 0; j < other.columns; j++) {
 				double accumulator = 0;
 				for (int k = 0; k < this.columns; k++) {
 					// TODO: This must be made generic.
+					// TODO: The get currently consumes 32% of CPU time.
 					accumulator += this.get(i, k) * other.get(k, j);
 				}
 				result.set(i, j, accumulator);
 			}
-		//});
+			//});
 		}
 		return result;
 	}
@@ -197,4 +200,53 @@ public class Matrix implements Serializable {
 		}
 		return m;
 	}
+
+	/*
+	// Unfortuntely, this pretty consistently crashes my machine.
+	//import com.aparapi.Kernel;
+	//import com.aparapi.Range;
+
+	private class MultiplyKernel extends Kernel {
+		final int aRows;
+		final int aColumns;
+		final int bRows;
+		final int bColumns;
+		final float[] aData;
+		final float[] bData;
+		final float[] cData;
+
+		//Usage:
+		//MultKern mk = MuliplyKernel(a, b);
+		//mk.execute(c.data.length);
+		//mk.copyResultToMatrix(c);
+
+		public MultiplyKernel(Matrix a, Matrix b) {
+			aRows = a.rows;
+			aColumns = a.columns;
+			bRows = b.rows;
+			bColumns = b.columns;
+			aData = new float[a.data.length];
+			bData = new float[b.data.length];
+			cData = new float[a.rows*b.columns];
+
+			// TODO: FP64 not supported.  Have to copy arrays.  :/
+			for(int i=0; i < aData.length; i++) { aData[i] = (float)a.data[i]; }
+			for(int i=0; i < bData.length; i++) { bData[i] = (float)b.data[i]; }
+			//for(int i=0; i < aData.length; i++) { cData[i] = (float)a.data[i]; }
+		}
+
+		public void copyResultToMatrix(Matrix c) {
+			for(int i=0; i < cData.length; i++) { c.data[i] = cData[i]; }
+		}
+
+		@Override
+		public void run() {
+			int i = getGlobalId(0); // a-th Row
+			int j = getGlobalId(1); // b-th Column
+			int k = getGlobalId(2);
+			// C[gid] -> gid = x+y*w = col + row*bColumns
+			cData[j + i*bColumns] += aData[k + i*aColumns]*bData[j + k*bColumns];
+		}
+	}
+	*/
 }

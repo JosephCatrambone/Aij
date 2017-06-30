@@ -19,8 +19,8 @@ public class Convolution2DNode extends Node {
 		// F = kernel.width
 		//int outputRows = (input.rows - kernel.rows)/rowStride + 1;
 		//int outputColumns = (input.columns - kernel.columns)/columnStride + 1;
-		int outputRows = input.rows/rowStride + 1;
-		int outputColumns = (input.columns/columnStride + 1)*kernels.length;
+		int outputRows = input.rows/rowStride;
+		int outputColumns = (input.columns/columnStride)*kernels.length;
 		this.rows = outputRows;
 		this.columns = outputColumns;
 		this.inputs = new Node[1 + kernels.length];
@@ -43,7 +43,7 @@ public class Convolution2DNode extends Node {
 
 		// For each filter, sum the element-wise product with the input volume and assign it to the output.
 		for(int r=0; r < this.rows; r++) {
-			for(int c=0; c < this.columns; c++) {
+			for(int c=0; c < this.columns/kernels.length; c++) {
 				// Should add padding.
 				int inRCenter = r*rowStride;
 				int inCCenter = c*columnStride;
@@ -61,7 +61,7 @@ public class Convolution2DNode extends Node {
 							}
 						}
 					}
-					output.set(r, c+k, accumulator);
+					output.set(r, (c*kernels.length)+k, accumulator);
 				}
 			}
 		}

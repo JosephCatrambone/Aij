@@ -176,4 +176,14 @@ public class NodeTest {
 		System.out.println(g);
 		System.out.println(back);
 	}
+
+	@Test
+	public void cropPadTest() {
+		Node input = new InputNode(2, 3);
+		Node pad = new PadCropNode(5, 4, input);
+
+		Matrix res = pad.forward(new Matrix[]{new Matrix(2, 3)});
+		Assert.assertEquals(res.rows, 5);
+		Assert.assertEquals(res.columns, 4);
+	}
 }
