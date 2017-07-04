@@ -26,6 +26,7 @@ public class Model extends Graph {
 	private Node outputNode; // Keeps track of the last later.
 
 	// Used for training.
+	private List<DropoutNode> dropoutNodes;
 	private Node targetNode;
 	private Node lossNode;
 	private List<VariableNode> trainableVariables;
@@ -35,6 +36,7 @@ public class Model extends Graph {
 		random = new Random();
 		inputNode = new InputNode(inputRows, inputColumns); // Gotta' resize.
 		outputNode = inputNode;
+		dropoutNodes = new ArrayList<>();
 		trainableVariables = new ArrayList<>();
 	}
 
@@ -186,9 +188,20 @@ public class Model extends Graph {
 	}
 
 	public double[][] predict(double[][] x) {
+		// Turn off all the dropout nodes so we don't drop anything.
+		double[] oldDropoutRates = new double[dropoutNodes.size()];
+		for(int i=0; i < dropoutNodes.size(); i++) {
+			oldDropoutRates[i] = dropoutNodes.get(i).dropoutRate;
+			dropoutNodes.get(i).dropoutRate = 0.0;
+		}
+		// Run the forward pass.
 		double[][] result = new double[x.length][outputNode.rows*outputNode.columns];
 		for(int i=0; i < x.length; i++) {
 			result[i] = predict(x[i]);
+		}
+		// Restore the values.
+		for(int i=0; i < dropoutNodes.size(); i++) {
+			dropoutNodes.get(i).dropoutRate = oldDropoutRates[i];
 		}
 		return result;
 	}
@@ -230,6 +243,13 @@ public class Model extends Graph {
 		Node prod = new AddNode(conv, bias);
 		outputNode = makeActivationNode(prod, act);
 		addNode(outputNode);
+	}
+
+	public void addDropoutLayer(double rate) {
+		DropoutNode dn = new DropoutNode(outputNode, rate);
+		outputNode = dn;
+		dropoutNodes.add(dn);
+		addNode(dn);
 	}
 
 	public void addFlattenLayer() {
