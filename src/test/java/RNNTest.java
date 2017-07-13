@@ -1,5 +1,6 @@
 import com.josephcatrambone.aij.*;
 
+import com.josephcatrambone.aij.models.LSTM;
 import com.josephcatrambone.aij.nodes.*;
 import org.junit.Test;
 
@@ -113,7 +114,7 @@ public class RNNTest {
 			String sent = sentences.get(random.nextInt(sentences.size()));
 			//String sent = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"; // About 2k iters.
 			sent = sent.replace('~', ' ');
-			sent = echoStringWhileLessThanMinLength(sent, numTrainingStepsUnrolled);
+			//sent = echoStringWhileLessThanMinLength(sent, numTrainingStepsUnrolled);
 			TrainingPair p = sentenceToTrainingPair(sent);
 
 			// Apply the training and, every N iterations, get a loss report.

@@ -1,5 +1,7 @@
-package com.josephcatrambone.aij;
+package com.josephcatrambone.aij.models;
 
+import com.josephcatrambone.aij.Graph;
+import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.nodes.*;
 import com.josephcatrambone.aij.optimizers.Optimizer;
 
@@ -37,7 +39,7 @@ public class LSTM {
 
 		final double WEIGHT_SCALE = 0.1;
 
-		weight_ig = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
+		weight_ig = new VariableNode(new Matrix(inputSize, hiddenSize, (i, j)->random.nextGaussian()*WEIGHT_SCALE));
 		weight_if = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
 		weight_ic = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
 		weight_io = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
@@ -98,7 +100,7 @@ public class LSTM {
 			}
 		}
 
-
+		return 0f;
 	}
 
 	class LSTMStep {

@@ -8,7 +8,7 @@ import com.josephcatrambone.aij.nodes.*;
  * Created by jcatrambone on 9/12/16.
  */
 public class Graph {
-	ArrayList<Node> nodes = new ArrayList<>();
+	public ArrayList<Node> nodes = new ArrayList<>();
 
 	public Node addNode(Node n) {
 		// Make sure all the dependencies happen first.

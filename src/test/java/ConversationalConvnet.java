@@ -1,6 +1,5 @@
 import com.josephcatrambone.aij.Matrix;
-import com.josephcatrambone.aij.Model;
-import com.josephcatrambone.aij.nodes.PadCropNode;
+import com.josephcatrambone.aij.models.Sequential;
 import org.junit.Assume;
 import org.junit.Test;
 
@@ -88,24 +87,24 @@ public class ConversationalConvnet {
 
 		System.out.println(matrixToSentence(sentenceToMatrix("This is a test.")));
 
-		// Build Model
-		Model m = new Model(sentenceLength, printableCharacters.length);
+		// Build Sequential
+		Sequential m = new Sequential(sentenceLength, printableCharacters.length);
 		// Encoder vv
-		m.addConvLayer(32, 3, printableCharacters.length, 2, printableCharacters.length/2, Model.Activation.RELU); //128x64 out.
-		m.addConvLayer(64, 32, 64, 16, 32, Model.Activation.TANH); // 64x1280
+		m.addConvLayer(32, 3, printableCharacters.length, 2, printableCharacters.length/2, Sequential.Activation.RELU); //128x64 out.
+		m.addConvLayer(64, 32, 64, 16, 32, Sequential.Activation.TANH); // 64x1280
 		int preFlattenedRows = m.getOutputNode().rows;
 		int preFlattenedColumns = m.getOutputNode().columns;
 		m.addFlattenLayer();
-		m.addDenseLayer(128, Model.Activation.TANH);
+		m.addDenseLayer(128, Sequential.Activation.TANH);
 		// Encoder output ^^
 
-		m.addDenseLayer(512, Model.Activation.TANH); // Representation
+		m.addDenseLayer(512, Sequential.Activation.TANH); // Representation
 
 		// Decoder vv
-		m.addDenseLayer(preFlattenedColumns*preFlattenedRows, Model.Activation.TANH);
+		m.addDenseLayer(preFlattenedColumns*preFlattenedRows, Sequential.Activation.TANH);
 		m.addReshapeLayer(preFlattenedRows, preFlattenedColumns);
-		m.addDeconvLayer(64, 32, 64, 16, 32, Model.Activation.TANH);
-		m.addDeconvLayer(32, 3, printableCharacters.length, 2, printableCharacters.length/2, Model.Activation.SIGMOID);
+		m.addDeconvLayer(64, 32, 64, 16, 32, Sequential.Activation.TANH);
+		m.addDeconvLayer(32, 3, printableCharacters.length, 2, printableCharacters.length/2, Sequential.Activation.SIGMOID);
 		//m.addNode(new PadCropNode(sentenceLength, printableCharacters.length, m.getOutputNode()));
 		// Decoder ^^
 
@@ -125,7 +124,7 @@ public class ConversationalConvnet {
 		for(int i=0; i < 10000; i++) {
 			//Matrix mat = sentenceToMatrix(sentences[random.nextInt(sentences.length)]);
 			Matrix mat = sentenceToMatrix("What the fuck?");
-			m.fit(mat.data, mat.data, 0.001, Model.Loss.ABS);
+			m.fit(mat.data, mat.data, 0.001, Sequential.Loss.ABS);
 			System.out.println(matrixToSentence(new Matrix(printableCharacters.length, sentenceLength, m.predict(mat.data))));
 		}
 	}

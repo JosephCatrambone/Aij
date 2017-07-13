@@ -1,5 +1,7 @@
-package com.josephcatrambone.aij;
+package com.josephcatrambone.aij.models;
 
+import com.josephcatrambone.aij.Graph;
+import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.nodes.*;
 import com.josephcatrambone.aij.optimizers.Momentum;
 import com.josephcatrambone.aij.optimizers.Optimizer;
@@ -13,7 +15,7 @@ import java.util.stream.IntStream;
 
 /**
  * Created by josephcatrambone on 1/17/17.
- * Model is a high-level wrapper for graph which has some common uses, like making dense layers and conv layers.
+ * Sequential is a high-level wrapper for graph which has some common uses, like making dense layers and conv layers.
  */
 public class Sequential extends Graph {
 	//public enum Optimizer { SGD, MOMENTUM, ADAGRAD };
@@ -42,7 +44,7 @@ public class Sequential extends Graph {
 
 	private VariableNode randomWeight(int rows, int columns) {
 		VariableNode w = new VariableNode(rows, columns);
-		w.setVariable(new Matrix(rows, columns, (i,j) -> (2.0f*random.nextDouble())-1.0f));
+		w.setVariable(new Matrix(rows, columns, (i, j) -> (2.0f*random.nextDouble())-1.0f));
 		w.name = "variable";
 		trainableVariables.add(w);
 		return w;

@@ -285,7 +285,7 @@ public class ModelTest {
 		model.addDeconvLayer(1, 3, 3, 2, 2, Sequential.Activation.RELU);
 		model.addDeconvLayer(4, 3, 3, 2, 2, Sequential.Activation.RELU);
 		//model.addLayer(new PadCropNode(rows, columns, model.getOutputNode())); // Pad an extra on the end.
-		System.out.println("Model output size: " + model.getOutputNode().rows + ", " + model.getOutputNode().columns);
+		System.out.println("Sequential output size: " + model.getOutputNode().rows + ", " + model.getOutputNode().columns);
 
 		// Load data.
 		double[][] images = loadMNISTExamples(trainingImagesFilename);
