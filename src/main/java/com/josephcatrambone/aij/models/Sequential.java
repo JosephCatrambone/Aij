@@ -15,7 +15,7 @@ import java.util.stream.IntStream;
  * Created by josephcatrambone on 1/17/17.
  * Model is a high-level wrapper for graph which has some common uses, like making dense layers and conv layers.
  */
-public class Model extends Graph {
+public class Sequential extends Graph {
 	//public enum Optimizer { SGD, MOMENTUM, ADAGRAD };
 	public enum Activation { NONE, TANH, SIGMOID, RELU, SOFTMAX };
 	public enum Loss { ABS, SQUARED, BINARY_CROSS_ENTROPY, SOFTMAX_CROSS_ENTROPY };
@@ -30,7 +30,7 @@ public class Model extends Graph {
 	private Node lossNode;
 	private List<VariableNode> trainableVariables;
 
-	public Model(int inputRows, int inputColumns) {
+	public Sequential(int inputRows, int inputColumns) {
 		super();
 		random = new Random();
 		inputNode = new InputNode(inputRows, inputColumns); // Gotta' resize.

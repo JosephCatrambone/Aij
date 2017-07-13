@@ -1,4 +1,4 @@
-import com.josephcatrambone.aij.Model;
+import com.josephcatrambone.aij.models.Sequential;
 import com.josephcatrambone.aij.nodes.PadCropNode;
 import org.junit.Test;
 import org.junit.Assume;
@@ -14,16 +14,16 @@ public class ModelTest {
 
 	@Test
 	public void saveRestoreTest() {
-		Model m = new Model(20, 20);
-		m.addConvLayer(1, 2, 2, 1, 1, Model.Activation.NONE);
-		m.addConvLayer(1, 2, 2, 1, 1, Model.Activation.NONE);
+		Sequential m = new Sequential(20, 20);
+		m.addConvLayer(1, 2, 2, 1, 1, Sequential.Activation.NONE);
+		m.addConvLayer(1, 2, 2, 1, 1, Sequential.Activation.NONE);
 		m.addFlattenLayer();
-		m.addDenseLayer(10, Model.Activation.NONE);
-		m.addDenseLayer(11, Model.Activation.TANH);
-		m.addDenseLayer(12, Model.Activation.RELU);
+		m.addDenseLayer(10, Sequential.Activation.NONE);
+		m.addDenseLayer(11, Sequential.Activation.TANH);
+		m.addDenseLayer(12, Sequential.Activation.RELU);
 
 		String model = m.serializeToString();
-		Model m2 = new Model(20, 20);
+		Sequential m2 = new Sequential(20, 20);
 		m2.restoreFromString(model);
 	}
 
@@ -38,9 +38,9 @@ public class ModelTest {
 	}
 
 	public void testXOR(boolean parallel) {
-		Model m = new Model(1, 2);
-		m.addDenseLayer(10, Model.Activation.TANH);
-		m.addDenseLayer(1, Model.Activation.SIGMOID);
+		Sequential m = new Sequential(1, 2);
+		m.addDenseLayer(10, Sequential.Activation.TANH);
+		m.addDenseLayer(1, Sequential.Activation.SIGMOID);
 
 		double[][] x = new double[][] {
 			{0, 0},
@@ -58,9 +58,9 @@ public class ModelTest {
 
 		for(int i=0; i < 5000; i++) {
 			if(parallel) {
-				m.fitBatch(x, y, 0.5, Model.Loss.SQUARED);
+				m.fitBatch(x, y, 0.5, Sequential.Loss.SQUARED);
 			} else {
-				m.fit(x, y, 0.5f, Model.Loss.SQUARED);
+				m.fit(x, y, 0.5f, Sequential.Loss.SQUARED);
 			}
 			System.out.print(m.predict(x[0])[0] + "\t\t");
 			System.out.print(m.predict(x[1])[0] + "\t\t");
@@ -72,10 +72,10 @@ public class ModelTest {
 
 	@Test
 	public void testCountSoftmax() {
-		Model m = new Model(1, 3);
+		Sequential m = new Sequential(1, 3);
 		// Are there one, two, or three bits set?
-		m.addDenseLayer(5, Model.Activation.SOFTMAX);
-		m.addDenseLayer(3, Model.Activation.SOFTMAX);
+		m.addDenseLayer(5, Sequential.Activation.SOFTMAX);
+		m.addDenseLayer(3, Sequential.Activation.SOFTMAX);
 
 		double[][] x = new double[][] {
 			{0, 0, 1},
@@ -98,7 +98,7 @@ public class ModelTest {
 		};
 
 		for(int i=0; i < 1000; i++) {
-			m.fit(x, y, 0.1f, Model.Loss.SQUARED);
+			m.fit(x, y, 0.1f, Sequential.Loss.SQUARED);
 			double loss = 0;
 			double[][] predictions = m.predict(x);
 			for(int j=0; j < predictions.length; j++) {
@@ -171,7 +171,7 @@ public class ModelTest {
 		final int ITERATION_COUNT = 10000000;
 		final int BATCH_SIZE = 10;
 		final int REPORT_INTERVAL = 100;
-		Model model;
+		Sequential model;
 		double[][] images = loadMNISTExamples("train-images-idx3-ubyte.gz");
 		double[][] labels = loadMNISTLabels("train-labels-idx1-ubyte.gz");
 
@@ -183,13 +183,13 @@ public class ModelTest {
 		int columns = 28;
 
 		// Build and train our model.
-		model = new Model(rows, columns);
-		model.addConvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
-		model.addConvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
+		model = new Sequential(rows, columns);
+		model.addConvLayer(1, 3, 3, 2, 2, Sequential.Activation.RELU);
+		model.addConvLayer(1, 3, 3, 2, 2, Sequential.Activation.RELU);
 		model.addFlattenLayer();
-		model.addDenseLayer(64, Model.Activation.RELU);
-		model.addDenseLayer(32, Model.Activation.TANH);
-		model.addDenseLayer(10, Model.Activation.SOFTMAX);
+		model.addDenseLayer(64, Sequential.Activation.RELU);
+		model.addDenseLayer(32, Sequential.Activation.TANH);
+		model.addDenseLayer(10, Sequential.Activation.SOFTMAX);
 
 		// Split up the training data into target and test.
 		// Start by shuffling the data.
@@ -219,7 +219,7 @@ public class ModelTest {
 				target[j] = labels[ex];
 			}
 			// Train the model for an iteration.
-			model.fitBatch(batch, target, learningRate, Model.Loss.SQUARED);
+			model.fitBatch(batch, target, learningRate, Sequential.Loss.SQUARED);
 			// Check if we should report:
 			if(i % REPORT_INTERVAL == 0) {
 				learningRate *= 0.999;
@@ -267,23 +267,23 @@ public class ModelTest {
 		final int ITERATION_COUNT = 100000;
 		final int BATCH_SIZE = 10;
 		final int REPORT_INTERVAL = 100;
-		Model model;
+		Sequential model;
 
 		int rows = 28;
 		int columns = 28;
 
 		// Build and train our model.
-		model = new Model(rows, columns);
-		model.addConvLayer(4, 3, 3, 2, 2, Model.Activation.RELU);
-		model.addConvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
+		model = new Sequential(rows, columns);
+		model.addConvLayer(4, 3, 3, 2, 2, Sequential.Activation.RELU);
+		model.addConvLayer(1, 3, 3, 2, 2, Sequential.Activation.RELU);
 		model.addFlattenLayer();
-		model.addDenseLayer(128, Model.Activation.RELU);
-		model.addDenseLayer(20, Model.Activation.RELU); // Representation.
-		model.addDenseLayer(128, Model.Activation.RELU);
-		model.addDenseLayer(7*7*4, Model.Activation.RELU);
+		model.addDenseLayer(128, Sequential.Activation.RELU);
+		model.addDenseLayer(20, Sequential.Activation.RELU); // Representation.
+		model.addDenseLayer(128, Sequential.Activation.RELU);
+		model.addDenseLayer(7*7*4, Sequential.Activation.RELU);
 		model.addReshapeLayer(7, 7*4);
-		model.addDeconvLayer(1, 3, 3, 2, 2, Model.Activation.RELU);
-		model.addDeconvLayer(4, 3, 3, 2, 2, Model.Activation.RELU);
+		model.addDeconvLayer(1, 3, 3, 2, 2, Sequential.Activation.RELU);
+		model.addDeconvLayer(4, 3, 3, 2, 2, Sequential.Activation.RELU);
 		//model.addLayer(new PadCropNode(rows, columns, model.getOutputNode())); // Pad an extra on the end.
 		System.out.println("Model output size: " + model.getOutputNode().rows + ", " + model.getOutputNode().columns);
 
@@ -316,7 +316,7 @@ public class ModelTest {
 				}
 			}
 			// Train the model for an iteration.
-			model.fit(batch, label, learningRate, Model.Loss.SQUARED);
+			model.fit(batch, label, learningRate, Sequential.Loss.SQUARED);
 			// Check if we should report:
 			if(i % REPORT_INTERVAL == 0 || i < 10) {
 				System.out.println(i);
