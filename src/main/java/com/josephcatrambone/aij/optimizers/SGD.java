@@ -19,7 +19,6 @@ public class SGD extends Optimizer {
 		this.learningRate = learningRate;
 	}
 
-
 	@Override
 	public void accumulateGradients(Node loss, Map<Node, Matrix> inputFeed) {
 		Matrix[] fwd = graph.forward(inputFeed);
