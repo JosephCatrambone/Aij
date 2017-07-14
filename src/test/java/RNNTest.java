@@ -77,6 +77,35 @@ public class RNNTest {
 		return t;
 	}
 
+	private Matrix[][] sentencesToTrainingSet(String[] sentences) {
+		int maxSentenceLength = 0;
+		for(String s : sentences) {
+			maxSentenceLength = Math.max(s.length(), maxSentenceLength);
+		}
+
+		Matrix[] inputs = new Matrix[maxSentenceLength-1];
+		Matrix[] outputs = new Matrix[maxSentenceLength-1];
+
+		for(int t=0; t < maxSentenceLength-1; t++) {
+			inputs[t] = new Matrix(sentences.length, inputSize);
+			outputs[t] = new Matrix(sentences.length, inputSize);
+
+			for(int batchRowIndex = 0; batchRowIndex < sentences.length; batchRowIndex++) {
+				// Skip the sentences whose length is less than this index.
+				if(sentences[batchRowIndex].length() < t) {
+					continue;
+				}
+				// inputs[t][batch,x])
+				for(int col = 0; col < sentences[batchRowIndex].length()-1; col++) {
+					inputs[t].setRow(batchRowIndex, encodeCharacterToProbabilityDistribution("" + sentences[batchRowIndex].charAt(col)));
+					outputs[t].setRow(batchRowIndex, encodeCharacterToProbabilityDistribution(""+sentences[batchRowIndex].charAt(col+1)));
+				}
+			}
+		}
+
+		return new Matrix[][]{inputs, outputs};
+	}
+
 	@Test
 	public void run() {
 		// Load data.
@@ -111,21 +140,29 @@ public class RNNTest {
 		while(learningRate > 0 && iteration < 10000000) {
 			iteration += 1;
 
-			String sent = sentences.get(random.nextInt(sentences.size()));
-			//String sent = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"; // About 2k iters.
-			sent = sent.replace('~', ' ');
+			// Sample a random set of sentences.
+			String[] batch = new String[10]; // Batch size = 10.
+			for(int i=0; i < 10; i++) {
+				batch[i] = sentences.get(random.nextInt(sentences.size()));
+			}
+
+			//String sent = sentences.get(random.nextInt(sentences.size()));
+			String sent = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"; // About 2k iters.
+			//sent = sent.replace('~', ' ');
 			//sent = echoStringWhileLessThanMinLength(sent, numTrainingStepsUnrolled);
-			TrainingPair p = sentenceToTrainingPair(sent);
+			//TrainingPair p = sentencesToTrainingSet(sent);
+			Matrix[][] trainingData = sentencesToTrainingSet(batch);
 
 			// Apply the training and, every N iterations, get a loss report.
+			lstm.unrollAndTrain(trainingData[0], trainingData[1], 25);
 
+			// Sample output.
+			Matrix[] pred = lstm.generate(new Matrix(1, inputSize), 50);
+			for(Matrix m : pred) {
+				System.out.print(selectCharacterFromProbabilityDistribution(m.getRow(0)));
+			}
+			System.out.println();
 		}
-	}
-
-	private void adaGradUpdate(Matrix mem, Matrix grad, Matrix w, double learningRate) {
-		mem.elementOp_i(grad, (m, dp) -> m + dp*dp); //mem += dparam * dparam
-		Matrix dw = grad.elementOp(mem, (dp, m) -> -learningRate*dp/Math.sqrt(1e-8+m));  // param += -learning_rate * dparam / np.sqrt(mem + 1e-8)
-		w.elementOp_i(dw, (p, dp) -> p+dp);  // NOTE: Negative in the learningRate multiplication above.
 	}
 
 	private void capGradientAtL1Norm(Matrix grad, float cap) {
