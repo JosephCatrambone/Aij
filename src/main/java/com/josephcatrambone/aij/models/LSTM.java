@@ -4,7 +4,10 @@ import com.josephcatrambone.aij.Graph;
 import com.josephcatrambone.aij.Matrix;
 import com.josephcatrambone.aij.nodes.*;
 import com.josephcatrambone.aij.optimizers.Optimizer;
+import com.josephcatrambone.aij.optimizers.SGD;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -28,9 +31,16 @@ public class LSTM {
 	VariableNode bias_c;
 	VariableNode bias_o;
 
+	// For training.
 	Optimizer optimizer = null;
 	Graph trainingGraph = null;
 	LSTMStep[] steps = null;
+	Node trainingLoss = null;
+
+	// For running.
+	Node initialHidden = null;
+	Node initialMemory = null;
+	LSTMStep nextStep = null; // For running.
 	Graph runGraph = null;
 
 	public LSTM(int inputSize, int hiddenSize) {
@@ -51,6 +61,83 @@ public class LSTM {
 		bias_f = new VariableNode(1, hiddenSize);
 		bias_c = new VariableNode(1, hiddenSize);
 		bias_o = new VariableNode(1, hiddenSize);
+	}
+
+	private VariableNode[] collectTrainingVariables() {
+		return new VariableNode[]{
+			weight_ig, // Wi*x_t  // X is our input.  i means input gate.
+			weight_hg, // Ui*h_t-1
+			weight_if, // W_f*x_t
+			weight_hf, // U_f*h_t-1
+			weight_ic, // W_c*x_t
+			weight_hc, // U_c*h_t-1
+			weight_io,
+			weight_ho,
+			bias_g,
+			bias_f,
+			bias_c,
+			bias_o
+		};
+	}
+
+	private void makeSingleRunStep() {
+		LSTMStep previousStep = new LSTMStep(this);
+		previousStep.hidden = initialHidden;
+		previousStep.memory = initialMemory;
+
+		Node nextInput = new InputNode(1, inputSize);
+		nextStep = previousStep.wireNextStep(nextInput);
+		runGraph.addNode(nextStep.hidden);
+	}
+
+	private void unroll(int batchSize, int stepsToUnwind, boolean singleLoss) {
+		// See unrollAndTrain for the real shape of these things.
+		// singleLoss means our loss function is ONLY the last output.
+		// singleLoss = false means we add up all the differences between the outputs and the targets.
+		steps = new LSTMStep[stepsToUnwind];
+		trainingGraph = new Graph();
+
+		// Start with some default input item.
+		LSTMStep startStep = new LSTMStep(this);
+		startStep.input = new InputNode(batchSize, inputSize);
+		startStep.hidden = new ConstantNode(batchSize, hiddenSize, 0.0);
+		startStep.memory = new ConstantNode(batchSize, hiddenSize, 0.0);
+
+		LSTMStep previousStep = startStep;
+		for(int i=0; i < stepsToUnwind; i++) {
+			Node input = new InputNode(batchSize, inputSize);
+			input.name = "LSTMStep_INPUT_" + i;
+			steps[i] = previousStep.wireNextStep(input);
+			if(!singleLoss || i == stepsToUnwind-1) {
+				Node target = new InputNode(batchSize, inputSize);
+				Node diff = new SubtractNode(steps[i].out, target);
+				Node abs = new AbsNode(diff);
+
+				target.name = "LSTMStep_TARGET_" + i;
+				abs.name = "LSTMStep_LOSS_" + i;
+
+				steps[i].target = target;
+				steps[i].loss = abs;
+			}
+			previousStep = steps[i];
+		}
+
+		// Add up the graph losses.
+		Node lossAccumulator = null;
+		if(singleLoss) {
+			lossAccumulator = steps[steps.length-1].loss;
+		} else {
+			for(LSTMStep step : steps) {
+				if (lossAccumulator == null) {
+					lossAccumulator = step.loss;
+				} else {
+					// trainingGraph.addNode(step.hidden);
+					lossAccumulator = new AddNode(lossAccumulator, step.loss);
+				}
+			}
+		}
+		trainingGraph.addNode(lossAccumulator);
+		trainingLoss = lossAccumulator;
 	}
 
 	/*** unrollAndTrain
@@ -74,33 +161,100 @@ public class LSTM {
 	 * @param stepsToUnwind
 	 * @return
 	 */
-	float unrollAndTrain(Matrix[] inputs, Matrix[] outputs, int stepsToUnwind) {
+	public void unrollAndTrain(Matrix[] inputs, Matrix[] outputs, int stepsToUnwind) {
 		if(trainingGraph == null) {
-			steps = new LSTMStep[stepsToUnwind];
-			trainingGraph = new Graph();
-
-			// Start with some default input item.
-			LSTMStep startStep = new LSTMStep(this);
-			startStep.input = new InputNode(inputs[0].rows, inputSize);
-			startStep.hidden = new ConstantNode(inputs[0].rows, hiddenSize, 0.0);
-			startStep.memory = new ConstantNode(inputs[0].rows, hiddenSize, 0.0);
-
-			steps[0] = startStep;
-			for(int i=1; i < stepsToUnwind; i++) {
-				Node input = new InputNode(inputs[0].rows, inputSize);
-				steps[i] = steps[i-1].wireNextStep(input);
-			}
-
-			// Wire up a loss for all of them.
-
-			// Add all of them to the training graph.
-			for(LSTMStep step : steps) {
-				trainingGraph.addNode(step.hidden);
-				// TODO: Start here.
-			}
+			unroll(inputs[0].rows, stepsToUnwind, false);
+			optimizer = new SGD(trainingGraph, collectTrainingVariables(), 0.01);
 		}
 
-		return 0f;
+		// If inputs is length k, we have to do k/stepsToUnwind 'leaps'.
+		for(int leap=0; leap < inputs.length/stepsToUnwind; leap++) {
+			// Assign a value to every input and every output.
+			Map<Node, Matrix> feedDict = new HashMap<>();
+			for (int i = 0; i < stepsToUnwind; i++) {
+				feedDict.put(steps[i].input, inputs[i + leap*stepsToUnwind]);
+				feedDict.put(steps[i].target, outputs[i + leap*stepsToUnwind]);
+			}
+
+			optimizer.accumulateGradients(trainingLoss, feedDict);
+		}
+		// TODO: Should we apply every step?
+		optimizer.applyGradients();
+	}
+
+	/*** unrollAndTrain
+	 * If you only care about the final state of the LSTM, this is the item to use, as compared to the above.
+	 * @param inputs
+	 * @param output
+	 * @param stepsToUnwind
+	 * @return
+	 */
+	void unrollAndTrain(Matrix[] inputs, Matrix output, int stepsToUnwind) {
+
+	}
+
+	// Gives the output at the last step.
+	// Each input should be a 1x<unit size> item.
+	public Matrix predict(Matrix[] inputs) {
+		Matrix[] res = predictStream(inputs);
+		return res[res.length-1];
+	}
+
+	// Perform a series of predictions, returning the output value from each step.  Uses the input value given.
+	public Matrix[] predictStream(Matrix[] inputs) {
+		if(runGraph == null) {
+			makeSingleRunStep();
+		}
+
+		Matrix[] outputs = new Matrix[inputs.length];
+
+		Matrix previousHiddenValue = new Matrix(1, hiddenSize);
+		Matrix previousMemoryValue = new Matrix(1, hiddenSize);
+		Map<Node, Matrix> feedDict = new HashMap<>();
+
+		for(int i=0; i < inputs.length; i++) {
+			Matrix input = inputs[i];
+			feedDict.put(nextStep.input, input);
+			feedDict.put(initialHidden, previousHiddenValue);
+			feedDict.put(initialMemory, previousMemoryValue);
+			Matrix[] results = runGraph.forward(feedDict);
+
+			previousHiddenValue = results[nextStep.hidden.id];
+			previousMemoryValue = results[nextStep.memory.id];
+			outputs[i] = results[nextStep.out.id];
+		}
+
+		return outputs;
+	}
+
+	// Performs a series of predictions, returning the output value from each and using that as the input value in the next step.
+	public Matrix[] generate(Matrix start, int steps) {
+		if(runGraph == null) {
+			makeSingleRunStep();
+		}
+
+		Matrix[] outputs = new Matrix[steps];
+
+		Matrix previousInput = start;
+		Matrix previousHiddenValue = new Matrix(1, hiddenSize);
+		Matrix previousMemoryValue = new Matrix(1, hiddenSize);
+		Map<Node, Matrix> feedDict = new HashMap<>();
+
+
+		for(int i=0; i < steps; i++) {
+			feedDict.put(nextStep.input, previousInput);
+			feedDict.put(initialHidden, previousHiddenValue);
+			feedDict.put(initialMemory, previousMemoryValue);
+
+			Matrix[] results = runGraph.forward(feedDict);
+
+			previousHiddenValue = results[nextStep.hidden.id];
+			previousMemoryValue = results[nextStep.memory.id];
+			outputs[i] = results[nextStep.out.id];
+			previousInput = results[nextStep.out.id];
+		}
+
+		return outputs;
 	}
 
 	class LSTMStep {
@@ -126,137 +280,27 @@ public class LSTM {
 		LSTMStep wireNextStep(Node input) {
 			LSTMStep next = new LSTMStep(this.parent);
 
+			// We need to broadcast the biases so they match the shape of the input count.
+			Node bg = new BroadcastNode(parent.bias_g, 1, input.rows);
+			Node bf = new BroadcastNode(parent.bias_f, 1, input.rows);
+			Node bc = new BroadcastNode(parent.bias_c, 1, input.rows);
+			Node bo = new BroadcastNode(parent.bias_o, 1, input.rows);
+
 			next.input = input;
-			next.gate = new SigmoidNode(new AddNode(new AddNode(new MatrixMultiplyNode(input, parent.weight_ig), new MatrixMultiplyNode(this.hidden, parent.weight_hg)), parent.bias_g));
-			next.forget = new SigmoidNode(new AddNode(new AddNode(new MatrixMultiplyNode(input, parent.weight_if), new MatrixMultiplyNode(this.hidden, parent.weight_hf)), parent.bias_f));
-			Node memoryHat = new TanhNode(new AddNode(new AddNode(new MatrixMultiplyNode(input, parent.weight_ic), new MatrixMultiplyNode(this.hidden, parent.weight_hc)), parent.bias_c));
+			next.gate = new SigmoidNode(new AddNode(new AddNode(new MatrixMultiplyNode(input, parent.weight_ig), new MatrixMultiplyNode(this.hidden, parent.weight_hg)), bg));
+			next.forget = new SigmoidNode(new AddNode(new AddNode(new MatrixMultiplyNode(input, parent.weight_if), new MatrixMultiplyNode(this.hidden, parent.weight_hf)), bf));
+			Node memoryHat = new TanhNode(new AddNode(new AddNode(new MatrixMultiplyNode(input, parent.weight_ic), new MatrixMultiplyNode(this.hidden, parent.weight_hc)), bc));
 			next.memory = new AddNode(new MultiplyNode(next.gate, memoryHat), new MultiplyNode(next.forget, this.memory));
-			next.out = new SigmoidNode(new AddNode(new AddNode(new MatrixMultiplyNode(input, parent.weight_io), new MatrixMultiplyNode(this.hidden, parent.weight_ho)), parent.bias_o));
+			next.out = new SigmoidNode(new AddNode(new AddNode(new MatrixMultiplyNode(input, parent.weight_io), new MatrixMultiplyNode(this.hidden, parent.weight_ho)), bo));
 			next.hidden = new MultiplyNode(next.out, new TanhNode(next.memory));
+
+			next.gate.name = "LSTMStep_GATE";
+			next.forget.name = "LSTMStep_FORGET";
+			next.memory.name = "LSTMStep_MEMORY";
+			next.out.name = "LSTMStep_OUT";
+			next.hidden.name = "LSTMStep_HIDDEN";
 
 			return next;
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-I feel useless.
-I've felt useless for a while.  At work, my sole purpose is to do machine learning stuff, but I'm not very good at it.
-I've not made anything in production that's being used.  The stuff I have made is being replaced.
-First it was LDA topics.  I couldn't calculate them and we had to bring in an outside team to do it.
-Next was doing the similarity DB.  My solution to store them in the database is being replaced by the data team.
-Next is the home front.  Someone without AI experience has an offer to work at OpenAI.  :(  Good for him, I mean,
-but darn for me.  I can't seem to make anything of value.
- */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
