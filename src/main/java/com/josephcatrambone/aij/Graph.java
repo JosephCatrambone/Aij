@@ -19,6 +19,20 @@ public class Graph {
 		}
 		n.id = nodes.size();
 		nodes.add(n);
+		// DEBUG:
+		// Sanity check each node to make sure that we're dense and all the dependencies are set.
+		for(int i=0; i < nodes.size(); i++) {
+			// Make sure this node has an ID.
+			assert(nodes.get(i).id != -1);
+			// Make sure the ID is equal to its place in the index.
+			assert(nodes.get(i).id == i);
+			// Assert that the inputs pass this check, too.
+			Node[] inputs = nodes.get(i).inputs;
+			for(int j=0; j < inputs.length; j++) {
+				assert(nodes.get(j).id < i);
+			}
+		}
+		// DEBUG END
 		return n; // A pass-through.
 	}
 

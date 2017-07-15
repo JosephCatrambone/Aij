@@ -31,6 +31,9 @@ public class LSTM {
 	VariableNode bias_c;
 	VariableNode bias_o;
 
+	Node initialHidden = null;
+	Node initialMemory = null;
+
 	// For training.
 	Optimizer optimizer = null;
 	Graph trainingGraph = null;
@@ -38,8 +41,6 @@ public class LSTM {
 	Node trainingLoss = null;
 
 	// For running.
-	Node initialHidden = null;
-	Node initialMemory = null;
 	LSTMStep nextStep = null; // For running.
 	Graph runGraph = null;
 
@@ -49,7 +50,7 @@ public class LSTM {
 
 		final double WEIGHT_SCALE = 0.1;
 
-		weight_ig = new VariableNode(new Matrix(inputSize, hiddenSize, (i, j)->random.nextGaussian()*WEIGHT_SCALE));
+		weight_ig = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
 		weight_if = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
 		weight_ic = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
 		weight_io = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
@@ -61,6 +62,22 @@ public class LSTM {
 		bias_f = new VariableNode(1, hiddenSize);
 		bias_c = new VariableNode(1, hiddenSize);
 		bias_o = new VariableNode(1, hiddenSize);
+
+		// Assign some names so we're not debugging blind.
+		weight_ig.name = "LSTM_Weight_input_to_gate";
+		weight_if.name = "LSTM_Weight_input_to_forget";
+		weight_ic.name = "LSTM_Weight_input_to_memory";
+		weight_io.name = "LSTM_Weight_input_to_output";
+
+		weight_hg.name = "LSTM_Weight_hidden_to_gate";
+		weight_hf.name = "LSTM_Weight_hidden_to_forget";
+		weight_hc.name = "LSTM_Weight_hidden_to_memory_cell";
+		weight_ho.name = "LSTM_Weight_hidden_to_output";
+
+		bias_g.name = "LSTM_Bias_gate";
+		bias_f.name = "LSTM_Bias_forget";
+		bias_c.name = "LSTM_Bias_memory";
+		bias_o.name = "LSTM_Bias_output";
 	}
 
 	private VariableNode[] collectTrainingVariables() {
@@ -80,7 +97,32 @@ public class LSTM {
 		};
 	}
 
+	/*** makeRunOnlyLSTM
+	 * Freeze and duplicate all the weights and return an LSTM with ONLY the run graph built.
+	 * @return
+	 */
+	public LSTM makeRunOnlyLSTM() {
+		LSTM ret = new LSTM(inputSize, hiddenSize);
+		ret.weight_ic = new VariableNode(this.weight_ic.getVariable());
+		ret.weight_if = new VariableNode(this.weight_if.getVariable());
+		ret.weight_ig = new VariableNode(this.weight_ig.getVariable());
+		ret.weight_io = new VariableNode(this.weight_io.getVariable());
+		ret.weight_hc = new VariableNode(this.weight_hc.getVariable());
+		ret.weight_hf = new VariableNode(this.weight_hf.getVariable());
+		ret.weight_hg = new VariableNode(this.weight_hg.getVariable());
+		ret.weight_ho = new VariableNode(this.weight_ho.getVariable());
+		ret.bias_c = new VariableNode(this.bias_c.getVariable());
+		ret.bias_f = new VariableNode(this.bias_f.getVariable());
+		ret.bias_g = new VariableNode(this.bias_g.getVariable());
+		ret.bias_o = new VariableNode(this.bias_o.getVariable());
+		return ret;
+	}
+
 	private void makeSingleRunStep() {
+		runGraph = new Graph();
+
+		initialHidden = new InputNode(1, hiddenSize);
+		initialMemory = new InputNode(1, hiddenSize);
 		LSTMStep previousStep = new LSTMStep(this);
 		previousStep.hidden = initialHidden;
 		previousStep.memory = initialMemory;
@@ -96,20 +138,21 @@ public class LSTM {
 		// singleLoss = false means we add up all the differences between the outputs and the targets.
 		steps = new LSTMStep[stepsToUnwind];
 		trainingGraph = new Graph();
+		initialMemory = new InputNode(1, hiddenSize);
+		initialHidden = new InputNode(1, hiddenSize);
 
 		// Start with some default input item.
-		LSTMStep startStep = new LSTMStep(this);
-		startStep.input = new InputNode(batchSize, inputSize);
-		startStep.hidden = new ConstantNode(batchSize, hiddenSize, 0.0);
-		startStep.memory = new ConstantNode(batchSize, hiddenSize, 0.0);
+		LSTMStep previousStep = new LSTMStep(this);
+		previousStep.input = new InputNode(batchSize, inputSize);
+		previousStep.hidden = initialHidden;
+		previousStep.memory = initialMemory;
 
-		LSTMStep previousStep = startStep;
 		for(int i=0; i < stepsToUnwind; i++) {
 			Node input = new InputNode(batchSize, inputSize);
 			input.name = "LSTMStep_INPUT_" + i;
 			steps[i] = previousStep.wireNextStep(input);
 			if(!singleLoss || i == stepsToUnwind-1) {
-				Node target = new InputNode(batchSize, inputSize);
+				Node target = new InputNode(batchSize, hiddenSize);
 				Node diff = new SubtractNode(steps[i].out, target);
 				Node abs = new AbsNode(diff);
 
@@ -161,24 +204,27 @@ public class LSTM {
 	 * @param stepsToUnwind
 	 * @return
 	 */
-	public void unrollAndTrain(Matrix[] inputs, Matrix[] outputs, int stepsToUnwind) {
+	public void unrollAndTrain(Matrix[] inputs, Matrix[] outputs, int stepsToUnwind, double learningRate) {
 		if(trainingGraph == null) {
 			unroll(inputs[0].rows, stepsToUnwind, false);
-			optimizer = new SGD(trainingGraph, collectTrainingVariables(), 0.01);
 		}
+		optimizer = new SGD(trainingGraph, collectTrainingVariables(), learningRate);
 
 		// If inputs is length k, we have to do k/stepsToUnwind 'leaps'.
-		for(int leap=0; leap < inputs.length/stepsToUnwind; leap++) {
+		for(int leap=0; leap < inputs.length-stepsToUnwind; leap += stepsToUnwind) {
 			// Assign a value to every input and every output.
 			Map<Node, Matrix> feedDict = new HashMap<>();
+			feedDict.put(initialMemory, new Matrix(outputs[0].rows, outputs[0].columns));
+			feedDict.put(initialHidden, new Matrix(outputs[0].rows, outputs[0].columns));
 			for (int i = 0; i < stepsToUnwind; i++) {
-				feedDict.put(steps[i].input, inputs[i + leap*stepsToUnwind]);
-				feedDict.put(steps[i].target, outputs[i + leap*stepsToUnwind]);
+				feedDict.put(steps[i].input, inputs[i + leap]);
+				feedDict.put(steps[i].target, outputs[i + leap]);
 			}
 
+			// Apply every step?
+			//optimizer.minimize(trainingLoss, feedDict);
 			optimizer.accumulateGradients(trainingLoss, feedDict);
 		}
-		// TODO: Should we apply every step?
 		optimizer.applyGradients();
 	}
 
@@ -202,10 +248,6 @@ public class LSTM {
 
 	// Perform a series of predictions, returning the output value from each step.  Uses the input value given.
 	public Matrix[] predictStream(Matrix[] inputs) {
-		if(runGraph == null) {
-			makeSingleRunStep();
-		}
-
 		Matrix[] outputs = new Matrix[inputs.length];
 
 		Matrix previousHiddenValue = new Matrix(1, hiddenSize);

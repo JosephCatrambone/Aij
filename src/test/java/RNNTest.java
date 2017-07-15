@@ -15,7 +15,9 @@ public class RNNTest {
 
 	public Random random = new Random();
 	public int inputSize = 127;
-	public int hiddenSize = 16;
+	public int hiddenSize = 127;
+	public int numSteps = 5;
+	public int batchSize = 1;
 
 	private String echoStringWhileLessThanMinLength(String s, int minLength) {
 		do {
@@ -78,6 +80,9 @@ public class RNNTest {
 	}
 
 	private Matrix[][] sentencesToTrainingSet(String[] sentences) {
+
+		//Matrix[input|output][time step][example (one of many in batch), --- example data ---]
+
 		int maxSentenceLength = 0;
 		for(String s : sentences) {
 			maxSentenceLength = Math.max(s.length(), maxSentenceLength);
@@ -96,10 +101,8 @@ public class RNNTest {
 					continue;
 				}
 				// inputs[t][batch,x])
-				for(int col = 0; col < sentences[batchRowIndex].length()-1; col++) {
-					inputs[t].setRow(batchRowIndex, encodeCharacterToProbabilityDistribution("" + sentences[batchRowIndex].charAt(col)));
-					outputs[t].setRow(batchRowIndex, encodeCharacterToProbabilityDistribution(""+sentences[batchRowIndex].charAt(col+1)));
-				}
+				inputs[t].setRow(batchRowIndex, encodeCharacterToProbabilityDistribution("" + sentences[batchRowIndex].charAt(t)));
+				outputs[t].setRow(batchRowIndex, encodeCharacterToProbabilityDistribution(""+sentences[batchRowIndex].charAt(t+1)));
 			}
 		}
 
@@ -122,7 +125,7 @@ public class RNNTest {
 				*/
 				String sentence = scanner.nextLine();
 				if(sentence.length() > 5) {
-					sentences.add(scanner.nextLine());
+					sentences.add(sentence);
 				}
 			}
 		} catch (FileNotFoundException e) {
@@ -133,35 +136,40 @@ public class RNNTest {
 		LSTM lstm = new LSTM(inputSize, hiddenSize);
 
 		// For each batch,
-		final int REPORT_INTERVAL = 100;
-		double learningRate = 0.05;
+		final int REPORT_INTERVAL = 10;
+		double learningRate = 0.1;
 
 		int iteration = 0;
 		while(learningRate > 0 && iteration < 10000000) {
 			iteration += 1;
 
 			// Sample a random set of sentences.
-			String[] batch = new String[10]; // Batch size = 10.
-			for(int i=0; i < 10; i++) {
-				batch[i] = sentences.get(random.nextInt(sentences.size()));
+			String[] batch = new String[batchSize];
+			for(int i=0; i < batchSize; i++) {
+				//batch[i] = sentences.get(random.nextInt(sentences.size()));
+				batch[i] = "Hand Ana a banana, please.";
 			}
 
 			//String sent = sentences.get(random.nextInt(sentences.size()));
-			String sent = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"; // About 2k iters.
 			//sent = sent.replace('~', ' ');
 			//sent = echoStringWhileLessThanMinLength(sent, numTrainingStepsUnrolled);
 			//TrainingPair p = sentencesToTrainingSet(sent);
 			Matrix[][] trainingData = sentencesToTrainingSet(batch);
 
 			// Apply the training and, every N iterations, get a loss report.
-			lstm.unrollAndTrain(trainingData[0], trainingData[1], 25);
+			lstm.unrollAndTrain(trainingData[0], trainingData[1], numSteps, learningRate);
 
-			// Sample output.
-			Matrix[] pred = lstm.generate(new Matrix(1, inputSize), 50);
-			for(Matrix m : pred) {
-				System.out.print(selectCharacterFromProbabilityDistribution(m.getRow(0)));
+			if(iteration % REPORT_INTERVAL == 0) {
+				// Sample output.
+				LSTM runner = lstm.makeRunOnlyLSTM();
+				//Matrix start = new Matrix(1, inputSize, encodeCharacterToProbabilityDistribution("b"));
+				Matrix start = new Matrix(1, inputSize);
+				Matrix[] pred = runner.generate(start, 20);
+				for (Matrix m : pred) {
+					System.out.print(selectCharacterFromProbabilityDistribution(m.getRow(0)));
+				}
+				System.out.println();
 			}
-			System.out.println();
 		}
 	}
 
