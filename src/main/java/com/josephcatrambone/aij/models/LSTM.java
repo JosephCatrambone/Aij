@@ -10,6 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+// TODO: Need XENT instead of MSE or ABS.
+// TODO: Need Softmax output.
+
 /**
  * Created by jcatrambone on 7/12/17.
  */
@@ -48,16 +51,16 @@ public class LSTM {
 		this.inputSize = inputSize;
 		this.hiddenSize = hiddenSize;
 
-		final double WEIGHT_SCALE = 0.1;
-
-		weight_ig = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
-		weight_if = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
-		weight_ic = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
-		weight_io = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
-		weight_hg = new VariableNode(new Matrix(hiddenSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
-		weight_hf = new VariableNode(new Matrix(hiddenSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
-		weight_hc = new VariableNode(new Matrix(hiddenSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
-		weight_ho = new VariableNode(new Matrix(hiddenSize, hiddenSize, (i,j)->random.nextGaussian()*WEIGHT_SCALE));
+		// 1/n_in from paper.  2/n_in from Google's experiemnts, but we're using Tanh & Sigmoid instead of RELU, so 1.0.
+		// The last value * (...) is the Xavier initialization.
+		weight_ig = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*(1.0/inputSize)));
+		weight_if = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*(1.0/inputSize)));
+		weight_ic = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*(1.0/inputSize)));
+		weight_io = new VariableNode(new Matrix(inputSize, hiddenSize, (i,j)->random.nextGaussian()*(1.0/inputSize)));
+		weight_hg = new VariableNode(new Matrix(hiddenSize, hiddenSize, (i,j)->random.nextGaussian()*(1.0/hiddenSize)));
+		weight_hf = new VariableNode(new Matrix(hiddenSize, hiddenSize, (i,j)->random.nextGaussian()*(1.0/hiddenSize)));
+		weight_hc = new VariableNode(new Matrix(hiddenSize, hiddenSize, (i,j)->random.nextGaussian()*(1.0/hiddenSize)));
+		weight_ho = new VariableNode(new Matrix(hiddenSize, hiddenSize, (i,j)->random.nextGaussian()*(1.0/hiddenSize)));
 		bias_g = new VariableNode(1, hiddenSize);
 		bias_f = new VariableNode(1, hiddenSize);
 		bias_c = new VariableNode(1, hiddenSize);
@@ -153,14 +156,17 @@ public class LSTM {
 			steps[i] = previousStep.wireNextStep(input);
 			if(!singleLoss || i == stepsToUnwind-1) {
 				Node target = new InputNode(batchSize, hiddenSize);
+				/*
 				Node diff = new SubtractNode(steps[i].out, target);
 				Node abs = new AbsNode(diff);
+				*/
+				Node loss = new SoftmaxLossNode(steps[i].out, target);
 
 				target.name = "LSTMStep_TARGET_" + i;
-				abs.name = "LSTMStep_LOSS_" + i;
+				//abs.name = "LSTMStep_LOSS_" + i;
 
 				steps[i].target = target;
-				steps[i].loss = abs;
+				steps[i].loss = loss;
 			}
 			previousStep = steps[i];
 		}
@@ -224,8 +230,11 @@ public class LSTM {
 			// Apply every step?
 			//optimizer.minimize(trainingLoss, feedDict);
 			optimizer.accumulateGradients(trainingLoss, feedDict);
+
+
 		}
 		optimizer.applyGradients();
+		optimizer.clearGradients();
 	}
 
 	/*** unrollAndTrain

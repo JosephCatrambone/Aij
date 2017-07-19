@@ -136,25 +136,32 @@ public class RNNTest {
 		LSTM lstm = new LSTM(inputSize, hiddenSize);
 
 		// For each batch,
-		final int REPORT_INTERVAL = 10;
+		final int REPORT_INTERVAL = 1000;
 		double learningRate = 0.1;
+
+		// TODO: MOVE THIS INTO THE LOOP.
+		// Sample a random set of sentences.
+		String[] batch = new String[batchSize];
+		for(int i=0; i < batchSize; i++) {
+			//Easy
+			//batch[i] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+			// Medium
+			batch[i] = "Hand Ana a banana, please.";
+			// Hard
+			// Move this into the loop if used.
+			//batch[i] = sentences.get(random.nextInt(sentences.size()));
+		}
+		Matrix[][] trainingData = sentencesToTrainingSet(batch);
 
 		int iteration = 0;
 		while(learningRate > 0 && iteration < 10000000) {
 			iteration += 1;
 
-			// Sample a random set of sentences.
-			String[] batch = new String[batchSize];
-			for(int i=0; i < batchSize; i++) {
-				//batch[i] = sentences.get(random.nextInt(sentences.size()));
-				batch[i] = "Hand Ana a banana, please.";
-			}
-
 			//String sent = sentences.get(random.nextInt(sentences.size()));
 			//sent = sent.replace('~', ' ');
 			//sent = echoStringWhileLessThanMinLength(sent, numTrainingStepsUnrolled);
 			//TrainingPair p = sentencesToTrainingSet(sent);
-			Matrix[][] trainingData = sentencesToTrainingSet(batch);
+			//Matrix[][] trainingData = sentencesToTrainingSet(batch);
 
 			// Apply the training and, every N iterations, get a loss report.
 			lstm.unrollAndTrain(trainingData[0], trainingData[1], numSteps, learningRate);
@@ -164,7 +171,7 @@ public class RNNTest {
 				LSTM runner = lstm.makeRunOnlyLSTM();
 				//Matrix start = new Matrix(1, inputSize, encodeCharacterToProbabilityDistribution("b"));
 				Matrix start = new Matrix(1, inputSize);
-				Matrix[] pred = runner.generate(start, 20);
+				Matrix[] pred = runner.generate(start, 40);
 				for (Matrix m : pred) {
 					System.out.print(selectCharacterFromProbabilityDistribution(m.getRow(0)));
 				}

@@ -12,6 +12,7 @@ import java.util.Map;
  */
 public class SGD extends Optimizer {
 
+	private int gradCount = 0;
 	public double learningRate;
 
 	public SGD(Graph g, VariableNode[] trainableVariables, double learningRate) {
@@ -25,8 +26,10 @@ public class SGD extends Optimizer {
 		Matrix[] grads = graph.getGradient(inputFeed, fwd, loss);
 
 		if(accumulatedGradients == null) {
+			gradCount = 1;
 			accumulatedGradients = grads;
 		} else {
+			gradCount++;
 			for(VariableNode n : variables) {
 				accumulatedGradients[n.id].elementOp_i(grads[n.id], (w1, w2) -> w1 + w2);
 			}
@@ -36,7 +39,7 @@ public class SGD extends Optimizer {
 	@Override
 	public void applyGradients() {
 		for(VariableNode n : variables) {
-			n.getVariable().elementOp_i(accumulatedGradients[n.id], (w, dw) -> w - learningRate*dw);
+			n.getVariable().elementOp_i(accumulatedGradients[n.id], (w, dw) -> w - learningRate*(dw/((float)gradCount)));
 		}
 	}
 
